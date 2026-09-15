@@ -1,0 +1,6 @@
+{
+  "name": "RSCM VARDİYA SİSTEMİ",
+  "description": "RSCM Vardiya Sistemi - 24 Saatlik (07:30 - 07:30) birim bazlı nöbet ve çalışma takibi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
