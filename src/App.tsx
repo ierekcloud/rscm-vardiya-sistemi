@@ -562,7 +562,7 @@ export default function App() {
               )}
             </div>
 
-            {/* ORTADA: RSCM VARDİYA SİSTEMİ BAŞLIĞI */}
+            {/* ORTADA: RSMC VARDİYA SİSTEMİ BAŞLIĞI */}
             <div className="text-center py-0.5 absolute left-1/2 -translate-x-1/2 z-0 hidden lg:block">
               <div className="inline-flex items-center justify-center gap-2.5 sm:gap-3">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-sky-400 flex items-center justify-center shadow-md shadow-indigo-500/25 border border-indigo-300/30 shrink-0">
@@ -571,7 +571,7 @@ export default function App() {
                 <div className="flex flex-col text-left">
                   <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight flex items-center gap-1.5 leading-none">
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-sky-400 to-cyan-400 drop-shadow-xs">
-                      RSCM
+                      RSMC
                     </span>
                     <span className={`${isDarkMode ? 'text-white' : 'text-slate-900'} tracking-tight`}>
                       VARDİYA SİSTEMİ

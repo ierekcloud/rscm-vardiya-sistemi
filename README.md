@@ -1,6 +1,6 @@
-# RSCM Vardiya ve Dinamik Nöbet Planlama Sistemi (v2.4 Enterprise)
+# RSMC Vardiya ve Dinamik Nöbet Planlama Sistemi (v2.4 Enterprise)
 
-RSCM (Bölgesel Ağ ve Sistem Operasyon Merkezi) operasyonel birimleri için geliştirilmiş; **24/72 saat kesintisiz istirahat döngüsü**, adil saat dengeleme algoritması ve çok birimli yetkilendirme altyapısına sahip kurumsal vardiya yönetim portalı.
+RSMC (Bölgesel Ağ ve Sistem Operasyon Merkezi) operasyonel birimleri için geliştirilmiş; **24/72 saat kesintisiz istirahat döngüsü**, adil saat dengeleme algoritması ve çok birimli yetkilendirme altyapısına sahip kurumsal vardiya yönetim portalı.
 
 ---
 
@@ -25,7 +25,7 @@ RSCM (Bölgesel Ağ ve Sistem Operasyon Merkezi) operasyonel birimleri için gel
 ## 🚀 Canlı Önizleme & Erişim
 
 Uygulamanın çalışan canlı sürümünü aşağıdaki bağlantıdan inceleyebilirsiniz:
-🔗 **Canlı Demo Portalı:** [RSCM Vardiya Sistemi](https://ais-pre-5qgeunjcur5ali7cg5igpq-43094338875.europe-west1.run.app)
+🔗 **Canlı Demo Portalı:** [RSMC Vardiya Sistemi](https://ais-pre-5qgeunjcur5ali7cg5igpq-43094338875.europe-west1.run.app)
 
 ---
 
@@ -63,4 +63,4 @@ Tarayıcınızda `http://localhost:3000` adresini açarak sistemi yerel ortamın
 ## 👤 Proje Sahibi & Sistem Tasarımı
 
 **Sistem Tasarımı & Algoritma:** İbrahim EREK  
-*RSCM Operasyonel Vardiya Yönetim Çözümleri*
+*RSMC Operasyonel Vardiya Yönetim Çözümleri*

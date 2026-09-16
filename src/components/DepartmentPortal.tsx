@@ -67,11 +67,11 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
 }) => {
   return (
     <div className="min-h-[calc(100vh-5rem)] flex flex-col justify-between p-4 sm:p-8 relative selection:bg-indigo-500 selection:text-white">
-      {/* Kurumsal RSCM Network Arka Plan Fotoğrafı - Daha belirgin ve canlı */}
+      {/* Kurumsal RSMC Network Arka Plan Fotoğrafı - Daha belirgin ve canlı */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <img
           src={rscmBackdropImg}
-          alt="RSCM Network Operations Center"
+          alt="RSMC Network Operations Center"
           className="w-full h-full object-cover object-center scale-100 transition-all duration-700 filter brightness-105 contrast-105"
         />
         {/* İnceltilmiş şeffaf kırık beyaz gradyan perde: görselin detayları ve network ışıkları çok daha belirgin */}
@@ -191,7 +191,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
       <footer className="w-full max-w-5xl mx-auto pt-6 pb-2 flex items-center justify-between text-xs relative z-10">
         <div className="flex items-center gap-2 font-bold text-slate-700">
           <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
-          <span>RSCM Operasyon Merkezi • v2.4</span>
+          <span>RSMC Operasyon Merkezi • v2.4</span>
         </div>
 
         {/* Çok hafif, zarif, göze batmayan "erek" imzası */}

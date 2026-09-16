@@ -22,7 +22,7 @@ interface PrismaHeroProps {
 }
 
 export const PrismaHero: React.FC<PrismaHeroProps> = ({
-  badge = "RSCM KURUMSAL VARDİYA MOTORU",
+  badge = "RSMC KURUMSAL VARDİYA MOTORU",
   title = "Kesintisiz Nöbet & Adil Bakiye Yönetimi",
   description = "24 saatlik döngüsel nöbet sistemi, otomatik eksik gün telafisi, 1 nöbet = 3 eşdeğer gün hesabı ve -2 gün maksimum borç sınırlandırma güvencesi.",
   primaryAction,

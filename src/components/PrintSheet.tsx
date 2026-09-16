@@ -20,7 +20,7 @@ export const PrintSheet: React.FC<PrintSheetProps> = ({
       {/* Üst Resmi Başlık */}
       <div className="border-b-2 border-black pb-4 mb-4 text-center">
         <h1 className="text-lg font-black uppercase tracking-wider">
-          RSCM VARDİYA - {department.name} ÇALIŞMA VE NÖBET ÇİZELGESİ
+          RSMC VARDİYA - {department.name} ÇALIŞMA VE NÖBET ÇİZELGESİ
         </h1>
         <div className="flex justify-between items-center mt-2 text-xs font-semibold">
           <span>Bölüm: {department.name}</span>
