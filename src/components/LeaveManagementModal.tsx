@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Palmtree, 
   X, 
-  Plus, 
   Trash2, 
-  CheckCircle2, 
-  AlertCircle, 
   Calendar,
-  UserCheck
+  Shield,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import { StaffLeave, StaffMember } from '../types';
 import { TURKISH_MONTHS } from '../utils/shiftLogic';
@@ -23,6 +21,8 @@ interface LeaveManagementModalProps {
   selectedYear: number;
   totalDaysInMonth: number;
   isDark: boolean;
+  isAdmin?: boolean;
+  onRequestAdminLogin?: () => void;
 }
 
 export const LeaveManagementModal: React.FC<LeaveManagementModalProps> = ({
@@ -36,25 +36,33 @@ export const LeaveManagementModal: React.FC<LeaveManagementModalProps> = ({
   selectedYear,
   totalDaysInMonth,
   isDark,
+  isAdmin = false,
+  onRequestAdminLogin,
 }) => {
   const monthName = TURKISH_MONTHS[selectedMonth];
+  const formattedMonth = String(selectedMonth + 1).padStart(2, '0');
+
+  const defaultStartDate = `${selectedYear}-${formattedMonth}-01`;
+  const defaultEndDate = `${selectedYear}-${formattedMonth}-${String(totalDaysInMonth).padStart(2, '0')}`;
 
   const [staffId, setStaffId] = useState<string>('');
-  const [startDay, setStartDay] = useState<string>('');
-  const [endDay, setEndDay] = useState<string>('');
-  const [reason, setReason] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>(defaultStartDate);
+  const [endDate, setEndDate] = useState<string>(defaultEndDate);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal kapandığında veya açıldığında formu sıfırla
-  React.useEffect(() => {
+  // Modal açıldığında form değerlerini sıfırla ve ilk personeli seç
+  useEffect(() => {
     if (isOpen) {
-      setStaffId('');
-      setStartDay('');
-      setEndDay('');
-      setReason('');
+      if (staffList.length > 0) {
+        setStaffId(staffList[0].id);
+      } else {
+        setStaffId('');
+      }
+      setStartDate(defaultStartDate);
+      setEndDate(defaultEndDate);
       setError(null);
     }
-  }, [isOpen]);
+  }, [isOpen, staffList, selectedMonth, selectedYear, totalDaysInMonth]);
 
   if (!isOpen) return null;
 
@@ -62,13 +70,27 @@ export const LeaveManagementModal: React.FC<LeaveManagementModalProps> = ({
     e.preventDefault();
     setError(null);
 
+    if (!isAdmin) {
+      if (onRequestAdminLogin) {
+        onRequestAdminLogin();
+      } else {
+        setError('İzin kaydetmek için lütfen Yönetici Girişi yapınız.');
+      }
+      return;
+    }
+
     if (!staffId) {
       setError('Lütfen izin verilecek personeli seçin.');
       return;
     }
 
-    const sDay = parseInt(startDay, 10);
-    const eDay = parseInt(endDay, 10);
+    if (!startDate || !endDate) {
+      setError('Lütfen başlangıç ve bitiş tarihlerini belirleyiniz.');
+      return;
+    }
+
+    const sDay = parseInt(startDate.split('-')[2], 10);
+    const eDay = parseInt(endDate.split('-')[2], 10);
 
     if (isNaN(sDay) || sDay < 1 || sDay > totalDaysInMonth) {
       setError(`Başlangıç günü 1 ile ${totalDaysInMonth} arasında geçerli bir gün olmalıdır.`);
@@ -84,236 +106,223 @@ export const LeaveManagementModal: React.FC<LeaveManagementModalProps> = ({
       staffId,
       startDay: sDay,
       endDay: eDay,
-      reason: reason.trim() || 'Yıllık İzin',
+      reason: 'Yıllık İzin',
       type: 'ANNUAL',
     });
 
-    // Başarıyla eklendikten sonra form alanlarını temizle
-    setStaffId('');
-    setStartDay('');
-    setEndDay('');
-    setReason('');
+    setError(null);
+  };
+
+  const formatDateDisplay = (day: number) => {
+    return `${String(day).padStart(2, '0')}.${formattedMonth}.${selectedYear}`;
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
       <div 
-        className={`relative w-full max-w-xl rounded-2xl shadow-2xl border transition-all duration-200 overflow-hidden ${
+        className={`relative w-full max-w-2xl rounded-3xl shadow-2xl border transition-all duration-200 overflow-hidden ${
           isDark 
             ? 'bg-slate-900 border-slate-700 text-slate-100 shadow-amber-950/20' 
-            : 'bg-white border-slate-200 text-slate-900 shadow-xl'
+            : 'bg-white border-slate-200 text-slate-900 shadow-2xl'
         }`}
       >
-        {/* Modal Başlığı */}
-        <div className={`px-5 py-4 border-b flex items-center justify-between gap-3 ${
-          isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50'
+        {/* Üst Başlık Barı (Resimdeki gibi sade ve şık) */}
+        <div className={`px-6 sm:px-8 pt-6 pb-4 flex items-center justify-between border-b ${
+          isDark ? 'border-slate-800' : 'border-slate-100'
         }`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-              <Palmtree className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-base sm:text-lg">
-                Personel İzin Yönetimi
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {monthName} {selectedYear} • İzinli Günleri Belirleme & Bakiye Düşümü
-              </p>
-            </div>
-          </div>
+          <h3 className="text-xl font-extrabold tracking-tight">
+            İzinli Personel
+          </h3>
 
           <button
             onClick={onClose}
-            className={`p-2 rounded-xl transition-colors cursor-pointer ${
-              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-200 text-slate-500'
+            className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+              isDark 
+                ? 'hover:bg-slate-800 text-slate-400 hover:text-white' 
+                : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'
             }`}
+            title="Kapat"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Gövde */}
-        <div className="p-5 space-y-5 text-sm max-h-[75vh] overflow-y-auto">
+        <div className="p-6 sm:p-8 space-y-6 text-sm max-h-[80vh] overflow-y-auto">
 
-          {/* İzin Formu */}
-          <form onSubmit={handleSubmit} className={`p-4 rounded-xl border space-y-4 ${
-            isDark ? 'bg-slate-800/40 border-slate-700' : 'bg-slate-50 border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-amber-500" />
-                Yeni İzin / Rapor Ekle
-              </span>
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                1 Nöbet = 3 Gün Esası
-              </span>
+          {/* Yönetici Girişi Bildirim Çubuğu (Resimdeki gibi) */}
+          {!isAdmin ? (
+            <div 
+              onClick={onRequestAdminLogin}
+              className={`w-full py-3 px-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-center gap-2.5 shadow-2xs hover:shadow-xs active:scale-99 ${
+                isDark 
+                  ? 'bg-amber-950/20 border-amber-600/50 hover:bg-amber-950/30 text-amber-300' 
+                  : 'bg-[#FFFDF5] border-[#FCD34D] hover:bg-[#FFFBEB] text-[#78350F]'
+              }`}
+              title="Yönetici girişi yapmak için tıklayın"
+            >
+              <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={2} />
+              <span className="font-bold text-sm">İzin girmek için Yönetici Girişi</span>
             </div>
+          ) : (
+            <div 
+              className={`w-full py-2.5 px-5 rounded-2xl border flex items-center justify-center gap-2.5 ${
+                isDark 
+                  ? 'bg-emerald-950/20 border-emerald-600/40 text-emerald-300' 
+                  : 'bg-emerald-50/80 border-emerald-300 text-emerald-900'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={2} />
+              <span className="font-bold text-xs sm:text-sm">Yönetici Modu Aktif • İzin Girişi Yapabilirsiniz</span>
+            </div>
+          )}
 
-            {error && (
-              <div className="p-2.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+          {/* Hata Mesajı */}
+          {error && (
+            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* İzin Giriş Formu (Resimdeki gibi 3 sütun + Buton) */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              
               {/* Personel Seçimi */}
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                  Personel:
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Personel
                 </label>
                 <select
                   value={staffId}
                   onChange={(e) => setStaffId(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${
+                  className={`w-full px-3.5 py-2.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#B49BF8]/60 transition-all ${
                     isDark 
                       ? 'bg-slate-800 border-slate-700 text-white' 
-                      : 'bg-white border-slate-300 text-slate-900'
+                      : 'bg-white border-slate-200 text-slate-800 shadow-2xs'
                   }`}
                 >
-                  <option value="" disabled className="text-slate-400">
-                    -- Personel Seçiniz --
-                  </option>
-                  {staffList.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} (Grup {s.groupId})
-                    </option>
-                  ))}
+                  {staffList.length === 0 ? (
+                    <option value="">Personel Bulunamadı</option>
+                  ) : (
+                    staffList.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
-              {/* Başlangıç Günü */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                  Başlangıç Günü:
+              {/* Başlangıç Tarihi */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Başlangıç
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
-                    min={1}
-                    max={totalDaysInMonth}
-                    placeholder="Örn: 1"
-                    value={startDay}
-                    onChange={(e) => setStartDay(e.target.value)}
-                    className={`w-full px-3 py-2 rounded-xl border text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${
+                    type="date"
+                    value={startDate}
+                    min={`${selectedYear}-${formattedMonth}-01`}
+                    max={`${selectedYear}-${formattedMonth}-${String(totalDaysInMonth).padStart(2, '0')}`}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className={`w-full pl-3.5 pr-10 py-2.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#B49BF8]/60 transition-all cursor-pointer ${
                       isDark 
-                        ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500' 
-                        : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400'
+                        ? 'bg-slate-800 border-slate-700 text-white' 
+                        : 'bg-white border-slate-200 text-slate-800 shadow-2xs'
                     }`}
                   />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 pointer-events-none">
-                    {monthName}
-                  </span>
+                  <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
-              {/* Bitiş Günü */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                  Bitiş Günü:
+              {/* Bitiş Tarihi */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Bitiş
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
-                    min={startDay ? Number(startDay) : 1}
-                    max={totalDaysInMonth}
-                    placeholder="Örn: 10"
-                    value={endDay}
-                    onChange={(e) => setEndDay(e.target.value)}
-                    className={`w-full px-3 py-2 rounded-xl border text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${
+                    type="date"
+                    value={endDate}
+                    min={startDate || `${selectedYear}-${formattedMonth}-01`}
+                    max={`${selectedYear}-${formattedMonth}-${String(totalDaysInMonth).padStart(2, '0')}`}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className={`w-full pl-3.5 pr-10 py-2.5 rounded-2xl border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#B49BF8]/60 transition-all cursor-pointer ${
                       isDark 
-                        ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500' 
-                        : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400'
+                        ? 'bg-slate-800 border-slate-700 text-white' 
+                        : 'bg-white border-slate-200 text-slate-800 shadow-2xs'
                     }`}
                   />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 pointer-events-none">
-                    {monthName}
-                  </span>
+                  <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
-              {/* Açıklama / Tür */}
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                  İzin Nedeni / Türü:
-                </label>
-                <input
-                  type="text"
-                  placeholder="Örn: Yıllık İzin, Rapor, Mazeret"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-xl border text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${
-                    isDark 
-                      ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500' 
-                      : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400'
-                  }`}
-                />
-              </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>İzni Kaydet ve Tabloya Uygula</span>
-            </button>
+            {/* Kaydet Butonu (Resimdeki mor/lavanta pastel buton) */}
+            <div className="pt-1">
+              <button
+                type="submit"
+                className="px-6 py-2.5 rounded-2xl font-bold text-sm text-white bg-[#B49BF8] hover:bg-[#A388F6] active:scale-98 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>+ İzni Kaydet</span>
+              </button>
+            </div>
           </form>
 
-          {/* Mevcut İzinler Listesi */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2.5 flex items-center justify-between">
-              <span>Bu Ay Tanımlı İzinler ({leaves.length})</span>
-              <span className="text-[11px] font-normal text-slate-400">
-                (İzinli günlerde tabloda <strong>X</strong> görünür)
-              </span>
+          {/* Bu aya temas eden izinler Bölümü */}
+          <div className="pt-2">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-2">
+              Bu aya temas eden izinler
             </h4>
 
             {leaves.length === 0 ? (
-              <div className={`p-4 rounded-xl border text-center text-xs ${
-                isDark ? 'bg-slate-800/30 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
-              }`}>
-                Bu ay için henüz kayıtlı bir izin bulunmamaktadır.
+              <div className="text-sm text-slate-400 dark:text-slate-500 py-1 font-normal">
+                Kayıtlı izin yok.
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2.5 mt-2">
                 {leaves.map((leave) => {
                   const staff = staffList.find((s) => s.id === leave.staffId);
                   const totalDays = leave.endDay - leave.startDay + 1;
                   return (
                     <div
                       key={leave.id}
-                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                      className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
                         isDark 
-                          ? 'bg-slate-800/40 border-slate-700/80 hover:border-slate-600' 
-                          : 'bg-white border-slate-200 shadow-2xs hover:border-slate-300'
+                          ? 'bg-slate-800/50 border-slate-700/80 hover:border-slate-600' 
+                          : 'bg-slate-50/80 border-slate-200 shadow-2xs hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                          <UserCheck className="w-4 h-4" />
+                        <div className="w-8 h-8 rounded-xl bg-[#B49BF8]/15 text-[#8B5CF6] flex items-center justify-center font-bold text-xs shrink-0">
+                          {leave.startDay}
                         </div>
                         <div>
-                          <div className="font-bold text-xs sm:text-sm flex items-center gap-2">
+                          <div className="font-bold text-sm flex items-center gap-2">
                             <span>{staff?.name || 'Bilinmeyen Personel'}</span>
-                            <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
-                              {leave.startDay} - {leave.endDay} {monthName} ({totalDays} Gün)
+                            <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-[#B49BF8]/20 text-[#6D28D9] dark:text-[#C4B5FD]">
+                              {formatDateDisplay(leave.startDay)} - {formatDateDisplay(leave.endDay)} ({totalDays} Gün)
                             </span>
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            {leave.reason || 'İzin'} • Vardiyada <strong>X</strong> olarak işaretlenir & hedeften düşülür.
+                            Vardiya çizelgesinde <strong>X</strong> görünür & hedeften düşülür.
                           </div>
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => onDeleteLeave(leave.id)}
-                        className={`p-2 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer`}
-                        title="İzni Sil"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteLeave(leave.id)}
+                          className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title="İzni Sil"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -321,31 +330,15 @@ export const LeaveManagementModal: React.FC<LeaveManagementModalProps> = ({
             )}
           </div>
 
-          {/* Akıllı Prensip Açıklaması */}
-          <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
-            isDark ? 'bg-amber-950/20 border-amber-800/30 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-950'
+          {/* Alt Açıklama Kutusu (Resimdeki gibi sade ve şık kart) */}
+          <div className={`p-4 rounded-2xl border text-xs leading-relaxed ${
+            isDark 
+              ? 'bg-slate-800/40 border-slate-800 text-slate-400' 
+              : 'bg-slate-50/80 border-slate-200 text-slate-600'
           }`}>
-            <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-            <div className="leading-relaxed">
-              <strong>Sistem Nasıl Çalışır?</strong>
-              <br />
-              Personel izinli olduğu günlerde (örneğin 2-12 arası) vardiya listesinde o günlere otomatik <strong>"X"</strong> konur ve nöbete çağrılmaz. İzin günleri personelin aylık çalışma hedefinden otomatik düşülür; böylece az nöbet tuttuğu için <strong>asla haksız borçlu çıkmaz</strong>. İstediğiniz zaman bu izni silebilirsiniz.
-            </div>
+            İzinli günler çizelgede <strong className="font-bold text-slate-900 dark:text-slate-200">X</strong> görünür. Personel bu tarihlerde nöbete atanmaz; Pazar dışındaki onaylı izin günleri kişisel aylık hedeften düşülür. Bu nedenle izin tek başına borç veya alacak oluşturmaz.
           </div>
 
-        </div>
-
-        {/* Modal Alt Kısmı */}
-        <div className={`px-5 py-3 border-t flex justify-end ${
-          isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50'
-        }`}>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white cursor-pointer transition-colors"
-          >
-            Kapat
-          </button>
         </div>
       </div>
     </div>

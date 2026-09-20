@@ -147,7 +147,7 @@ export interface MonthSummary {
   autoCompensated?: boolean; // Araya sıkıştırma / otomatik denkleştirme aktif mi?
   compensatedShiftsCount?: number; // Kaç nöbet araya sıkıştırıldı?
   validationWarnings?: string[]; // Otomatik kural denetimi hataları
-  auditReport?: AgentAuditReport; // 🤖 RSMC Akıllı Denetçi Ajanı Raporu
+  auditReport?: AgentAuditReport; // 📋 RSMC Yönetici Denetim Raporu
   leaves?: StaffLeave[]; // Ay içindeki personel izinleri
 }
 

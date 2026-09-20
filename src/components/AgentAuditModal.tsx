@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Bot, 
+  ClipboardCheck, 
   Calendar, 
   X, 
   Sparkles, 
@@ -81,12 +81,12 @@ export const AgentAuditModal: React.FC<AgentAuditModalProps> = ({
         }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-              <Bot className="w-5 h-5" />
+              <ClipboardCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base sm:text-lg">
-                  Akıllı Denetçi Raporu
+                  Yönetici Denetim Raporu
                 </h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
                   {monthName} {summary.year}
@@ -99,7 +99,7 @@ export const AgentAuditModal: React.FC<AgentAuditModalProps> = ({
                     PİLOT BİRİM
                   </span>
                 )}
-                <span>• Nöbet & Devir Analizi</span>
+                <span>• Nöbet, Bakiye & Mutabakat Analizi</span>
               </p>
             </div>
           </div>

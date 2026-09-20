@@ -23,11 +23,11 @@ export const DepartmentManagerModal: React.FC<DepartmentManagerModalProps> = ({
   onRenameDepartment,
   onDeleteDepartment,
 }) => {
-  if (!isOpen) return null;
-
   const [newDeptName, setNewDeptName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+
+  if (!isOpen) return null;
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();

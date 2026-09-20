@@ -137,13 +137,9 @@ export const DailyListView: React.FC<DailyListViewProps> = ({
               <div className="flex items-center gap-3">
                 <div
                   className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center shrink-0 tabular-nums border shadow-2xs ${
-                    shift.date.getDay() === 0
+                    shift.isWeekend
                       ? isDark
-                        ? 'bg-amber-500/35 text-amber-200 font-black border-amber-500/50'
-                        : 'bg-amber-300 text-amber-950 font-black border-amber-400'
-                      : shift.date.getDay() === 6
-                      ? isDark
-                        ? 'bg-amber-500/25 text-amber-200 font-black border-amber-500/40'
+                        ? 'bg-amber-500/30 text-amber-200 font-black border-amber-500/50'
                         : 'bg-amber-200 text-amber-950 font-black border-amber-300'
                       : isDark
                       ? 'bg-slate-800 text-slate-200 font-semibold border-slate-700'
@@ -174,14 +170,14 @@ export const DailyListView: React.FC<DailyListViewProps> = ({
                     </span>
                     {shift.date.getDay() === 0 && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-md font-black border shadow-2xs ${
-                        isDark ? 'bg-amber-500/35 text-amber-200 border-amber-500/50' : 'bg-amber-300 text-amber-950 border-amber-400'
+                        isDark ? 'bg-amber-500/30 text-amber-200 border-amber-500/50' : 'bg-amber-200 text-amber-950 border-amber-300'
                       }`}>
                         Pazar (Tatil)
                       </span>
                     )}
                     {shift.date.getDay() === 6 && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-md font-black border shadow-2xs ${
-                        isDark ? 'bg-amber-500/25 text-amber-200 border-amber-500/40' : 'bg-amber-200 text-amber-950 border-amber-300'
+                        isDark ? 'bg-amber-500/30 text-amber-200 border-amber-500/50' : 'bg-amber-200 text-amber-950 border-amber-300'
                       }`}>
                         Cumartesi
                       </span>

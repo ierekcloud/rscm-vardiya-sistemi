@@ -49,14 +49,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <div
               key={wd}
               className={`py-3 sm:py-3.5 border-r ${
-                isSun
+                isWeekendCol
                   ? isDark
-                    ? 'text-amber-100 bg-amber-500/35 border-amber-500/60 font-black'
-                    : 'text-amber-950 bg-amber-300 border-amber-400 font-black'
-                  : isSat
-                  ? isDark
-                    ? 'text-amber-200 bg-amber-500/25 border-amber-500/50 font-black'
-                    : 'text-amber-950 bg-amber-200 border-amber-300 font-black'
+                    ? 'text-amber-100 bg-amber-500/30 border-amber-500/60 font-black'
+                    : 'text-amber-950 bg-amber-200 border-amber-400 font-black'
                   : isDark
                   ? 'text-slate-300 border-slate-800'
                   : 'text-slate-700 border-slate-200'
@@ -107,14 +103,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               key={shift.dayNumber}
               onClick={() => onDayClick && onDayClick(shift)}
               className={`min-h-[110px] sm:min-h-[125px] p-2.5 transition-colors flex flex-col justify-between ${
-                isSun
+                isWeekend
                   ? isDark
-                    ? 'bg-amber-950/45 hover:bg-amber-950/65 border-amber-500/40'
-                    : 'bg-amber-100/90 hover:bg-amber-200/80 border-amber-300/80'
-                  : isWeekend
-                  ? isDark
-                    ? 'bg-amber-950/30 hover:bg-amber-950/50 border-amber-500/30'
-                    : 'bg-amber-50 hover:bg-amber-100/70 border-amber-200/80'
+                    ? 'bg-amber-950/40 hover:bg-amber-950/60 border-amber-500/40'
+                    : 'bg-amber-100/80 hover:bg-amber-200/80 border-amber-300/80'
                   : isDark
                   ? 'bg-[#111827] hover:bg-slate-800/50'
                   : 'bg-white hover:bg-slate-50'
@@ -140,12 +132,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   {isWeekend && (
                     <span
                       className={`text-[10px] font-black px-2 py-0.5 rounded-md border shadow-2xs ${
-                        isSun
-                          ? isDark
-                            ? 'bg-amber-500/35 text-amber-200 border-amber-500/50'
-                            : 'bg-amber-300 text-amber-950 border-amber-400'
-                          : isDark
-                          ? 'bg-amber-500/25 text-amber-300 border-amber-500/40'
+                        isDark
+                          ? 'bg-amber-500/30 text-amber-200 border-amber-500/50'
                           : 'bg-amber-200 text-amber-950 border-amber-300'
                       }`}
                     >

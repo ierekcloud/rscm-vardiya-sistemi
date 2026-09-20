@@ -30,7 +30,9 @@ import { ManagerLoginModal } from './components/ManagerLoginModal';
 import { AgentAuditModal } from './components/AgentAuditModal';
 import { StaffAuditModal } from './components/StaffAuditModal';
 import { LeaveManagementModal } from './components/LeaveManagementModal';
+import { StaffManagerModal } from './components/StaffManagerModal';
 import { ManagerCredentials } from './utils/auth';
+import { APP_VERSION_LABEL } from './version';
 
 import { PersonnelSidebar } from './components/PersonnelSidebar';
 import {
@@ -63,6 +65,7 @@ import {
   LogOut,
   AlertTriangle,
   Bot,
+  ClipboardCheck,
   UserCheck,
   ChevronDown,
   Palmtree,
@@ -235,6 +238,7 @@ export default function App() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState<boolean>(false);
   const [isStaffAuditModalOpen, setIsStaffAuditModalOpen] = useState<boolean>(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
+  const [isStaffManagerModalOpen, setIsStaffManagerModalOpen] = useState<boolean>(false);
 
   // Personel İzin / Rapor Kayıtları (Ay ve Birim bazlı kalıcı saklama)
   const STORAGE_KEY_LEAVES_V4 = 'vardiya_telekom_leaves_v4';
@@ -425,7 +429,7 @@ export default function App() {
       true,
       currentMonthLeaves
     );
-  }, [selectedYear, selectedMonth, undefined, activeStaffList, overrides, carryoverBalances, currentMonthLeaves]);
+  }, [selectedYear, selectedMonth, activeStaffList, overrides, carryoverBalances, currentMonthLeaves]);
 
   // Portalden birim seçilince
   const handleSelectDepartmentFromPortal = (deptId: string) => {
@@ -531,6 +535,110 @@ export default function App() {
         return { ...d, staff: updatedStaff };
       });
     });
+  };
+
+  // Yeni Personel Ekle (Gruba Personel Ekleme)
+  const handleAddStaff = (name: string, groupId: GroupId) => {
+    if (!isAdmin) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    setDepartments((prevDepts) => {
+      return prevDepts.map((d) => {
+        if (d.id !== activeDepartment.id) return d;
+        const groupCount = d.staff.filter((s) => s.groupId === groupId).length;
+        const newStaff: StaffMember = {
+          id: `staff-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          name: cleanName,
+          groupId,
+          orderInGroup: groupCount + 1,
+        };
+        return {
+          ...d,
+          staff: [...d.staff, newStaff],
+        };
+      });
+    });
+
+    setCarryoverSuccess(`Yeni personel "${cleanName}", ${GROUPS_CONFIG[groupId].name} grubuna eklendi.`);
+    setTimeout(() => setCarryoverSuccess(null), 3500);
+  };
+
+  // Personel Sil (Gruptan Personel Çıkarma)
+  const handleDeleteStaff = (staffId: string) => {
+    if (!isAdmin) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    const staffToDelete = activeDepartment.staff.find((s) => s.id === staffId);
+    const staffName = staffToDelete ? staffToDelete.name : 'Personel';
+
+    setDepartments((prevDepts) => {
+      return prevDepts.map((d) => {
+        if (d.id !== activeDepartment.id) return d;
+        const filteredStaff = d.staff.filter((s) => s.id !== staffId);
+        // Gruba göre sıralamaları yeniden düzenle
+        const reindexed = filteredStaff.map((st) => {
+          if (st.groupId === staffToDelete?.groupId) {
+            const sameGroup = filteredStaff.filter((x) => x.groupId === st.groupId);
+            const idx = sameGroup.findIndex((x) => x.id === st.id);
+            return { ...st, orderInGroup: idx + 1 };
+          }
+          return st;
+        });
+        return { ...d, staff: reindexed };
+      });
+    });
+
+    setCarryoverSuccess(`"${staffName}" kadrodan çıkarıldı.`);
+    setTimeout(() => setCarryoverSuccess(null), 3500);
+  };
+
+  // Personelin Grubunu Değiştir (A, B, C, D arası geçiş)
+  const handleChangeStaffGroup = (staffId: string, newGroupId: GroupId) => {
+    if (!isAdmin) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    setDepartments((prevDepts) => {
+      return prevDepts.map((d) => {
+        if (d.id !== activeDepartment.id) return d;
+        const targetStaff = d.staff.find((s) => s.id === staffId);
+        if (!targetStaff || targetStaff.groupId === newGroupId) return d;
+
+        const groupMembers = d.staff.filter((s) => s.groupId === newGroupId && s.id !== staffId);
+        const updatedStaff = d.staff.map((s) => {
+          if (s.id === staffId) {
+            return {
+              ...s,
+              groupId: newGroupId,
+              orderInGroup: groupMembers.length + 1,
+            };
+          }
+          return s;
+        });
+        return { ...d, staff: updatedStaff };
+      });
+    });
+  };
+
+  // Kadroyu Toplu Kaydet (Kadro & Grup Yönetim Modalı için)
+  const handleSaveAllStaff = (newStaffList: StaffMember[]) => {
+    if (!isAdmin) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    setDepartments((prevDepts) => {
+      return prevDepts.map((d) => {
+        if (d.id !== activeDepartment.id) return d;
+        return { ...d, staff: newStaffList };
+      });
+    });
+    setCarryoverSuccess(`${activeDepartment.name} kadro ve grup yapılandırması başarıyla güncellendi.`);
+    setTimeout(() => setCarryoverSuccess(null), 3500);
   };
 
   const handleFillDemoNames = () => {
@@ -689,19 +797,28 @@ export default function App() {
             {/* Sağ Eylemler: CANLI SAAT, Tema, Yazdır */}
             <div className="flex items-center justify-end gap-2 sm:gap-4 flex-shrink-1 min-w-0">
               
-              {/* CANLI SAAT VE TARİH - Daha büyük ve görünür */}
-              <div className={`hidden sm:flex items-center gap-3 px-4 py-2 rounded-2xl border shadow-sm shrink-0 transition-all ${
-                isDarkMode 
-                  ? 'bg-slate-900/40 border-slate-800 text-slate-200 shadow-indigo-500/5' 
-                  : 'bg-indigo-50/30 border-indigo-100 text-slate-800 shadow-indigo-500/5'
-              }`}>
-                <Clock className="w-5 h-5 text-indigo-500 shrink-0" />
-                <div className="flex flex-col text-right leading-tight">
-                  <span className="text-sm sm:text-base font-black tabular-nums tracking-tight text-indigo-600 dark:text-indigo-400">
+              {/* CANLI SAAT VE TARİH - Belirgin, Net ve Mavi Okunaklı Tasarım */}
+              <div
+                className={`flex items-center gap-3 px-3.5 sm:px-4 py-2 rounded-2xl border-2 shadow-md shrink-0 transition-all ${
+                  isDarkMode
+                    ? 'bg-slate-900 border-blue-500/40 text-blue-400 shadow-blue-950/40'
+                    : 'bg-white border-blue-200 text-blue-700 shadow-blue-500/10'
+                }`}
+                title="Canlı Sistem Saati ve Tarih"
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 shrink-0 relative border border-blue-200 dark:border-blue-800">
+                  <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400 stroke-[2.5]" />
+                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                </div>
+                <div className="flex flex-col text-right leading-none gap-1">
+                  <span className="text-base sm:text-lg font-black tabular-nums tracking-tight font-mono text-blue-600 dark:text-blue-400">
                     {currentTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    {currentTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  <span className="text-[11px] sm:text-xs font-black tracking-wide text-blue-800 dark:text-blue-300 uppercase">
+                    {currentTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'short' })}
                   </span>
                 </div>
               </div>
@@ -734,24 +851,18 @@ export default function App() {
               
               {currentManager ? (
                 <div className="flex items-center gap-2">
-                  {/* Yönetici Bilgisi & Canlı 5 Dk Süre Sayacı */}
+                  {/* Yönetici Bilgisi (Geri sayım arka planda güvenle devam eder, arayüzde gizlenmiştir) */}
                   <div
                     className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${
                       isDarkMode
                         ? 'bg-indigo-950/40 border-indigo-800/60 text-indigo-300'
                         : 'bg-indigo-50 border-indigo-200 text-indigo-900'
                     }`}
-                    title="Yönetici Oturumu & Kalan Süre"
+                    title="Yönetici Oturumu Aktif"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                     <span className="hidden md:inline font-extrabold">{currentManager.departmentName}</span>
                     <span className="text-[11px] opacity-75 font-mono">({currentManager.registryNumber})</span>
-                    
-                    {/* 5 Dakikalık Sayaç */}
-                    <div className="flex items-center gap-1 pl-1.5 ml-1 border-l border-indigo-400/30 text-amber-500 font-mono text-[11px]" title="5 dakikalık oturumun kalan süresi">
-                      <Timer className="w-3 h-3 animate-pulse text-amber-500" />
-                      <span>{formatSessionTime(sessionRemainingSec)}</span>
-                    </div>
                   </div>
 
                   {/* Şifremi Değiştir / Yönet */}
@@ -966,7 +1077,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 1. ANA BUTON: VARDİYA HESAPLA */}
+                  {/* 1. ANA BUTON: VARDİYA OLUŞTUR */}
                   <button
                     type="button"
                     onClick={handleGenerateSchedule}
@@ -975,25 +1086,25 @@ export default function App() {
                         ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white shadow-indigo-600/30 ring-1 ring-indigo-500/30'
                         : 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white shadow-indigo-600/20 ring-1 ring-indigo-400/30'
                     }`}
-                    title="Seçili ay için nöbetleri hesaplar ve günceller"
+                    title="Seçili ay için nöbetleri oluşturur ve günceller"
                   >
                     <Play className="w-4 h-4 fill-current transition-transform group-hover:scale-110" />
-                    <span>VARDİYA HESAPLA</span>
+                    <span>VARDİYA OLUŞTUR</span>
                   </button>
 
                   {/* 2. DİKEY HIZLI YÖNETİM BUTONLARI (ALT ALTA) */}
                   <div className="flex flex-col gap-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      HIZLI YÖNETİM BUTONLARI
+                       HIZLI YÖNETİM BUTONLARI
                     </label>
 
-                    {/* 🤖 AKILLI DENETÇİ RAPORU BUTONU */}
+                    {/* 📋 YÖNETİCİ DENETİM RAPORU BUTONU */}
                     <button
                       type="button"
                       id="btn-open-agent-audit"
                       onClick={() => {
                         if (!isScheduleGenerated) {
-                          setCarryoverSuccess("⚠️ Lütfen önce 'VARDİYA HESAPLA' butonuna basınız. Akıllı Denetçi Raporu, vardiya yazıldıktan sonra takvim ve bakiye analizi yapar.");
+                          setCarryoverSuccess("⚠️ Lütfen önce 'VARDİYA OLUŞTUR' butonuna basınız. Yönetici Denetim Raporu, vardiya oluşturulduktan sonra takvim döngüsü ve bakiye mutabakatı analizi yapar.");
                           setTimeout(() => setCarryoverSuccess(null), 4500);
                           return;
                         }
@@ -1010,8 +1121,8 @@ export default function App() {
                       }`}
                       title={
                         isScheduleGenerated
-                          ? "Takvimdeki 5'li günleri, personellerin fazla nöbetlerini ve devir kuralını denetleyen Yapay Zeka Raporu"
-                          : "Vardiya hesaplandıktan sonra aktifleşir"
+                          ? "Takvim döngülerini, personellerin nöbet sayılarını ve bakiye mutabakatını denetleyen Yönetici Raporu"
+                          : "Vardiya oluşturulduktan sonra aktifleşir"
                       }
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -1020,18 +1131,18 @@ export default function App() {
                             ? 'bg-slate-800/40 text-slate-500 border border-slate-700/50'
                             : 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-500'
                         }`}>
-                          <Bot className={`w-4 h-4 ${isScheduleGenerated ? 'animate-pulse' : ''}`} />
+                          <ClipboardCheck className={`w-4 h-4 ${isScheduleGenerated ? 'text-cyan-500' : ''}`} />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black truncate">Akıllı Denetçi Raporu</div>
+                          <div className="text-xs font-black truncate">Yönetici Denetim Raporu</div>
                           <div className="text-[10px] opacity-75 font-medium truncate">
-                            {isScheduleGenerated ? 'Nöbet & Devir Analizi' : 'Hesaplama Sonrası Çalışır'}
+                            {isScheduleGenerated ? 'Nöbet, Bakiye & Mutabakat' : 'Oluşturma Sonrası Çalışır'}
                           </div>
                         </div>
                       </div>
                       {!isScheduleGenerated ? (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
-                          Önce Hesaplayın
+                          Önce Oluşturun
                         </span>
                       ) : monthSummary.auditReport && monthSummary.auditReport.fiveDaysAnomalies.length > 0 ? (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-slate-950 shrink-0 animate-bounce">
@@ -1048,7 +1159,7 @@ export default function App() {
                       id="btn-open-staff-audit"
                       onClick={() => {
                         if (!isScheduleGenerated) {
-                          setCarryoverSuccess("⚠️ Lütfen önce 'VARDİYA HESAPLA' butonuna basınız. Personel Denetleme Ajanı, vardiya yazıldıktan sonra personelin nöbetlerini ve bakiye sağlamasını denetler.");
+                          setCarryoverSuccess("⚠️ Lütfen önce 'VARDİYA OLUŞTUR' butonuna basınız. Personel Denetleme Ajanı, vardiya oluşturulduktan sonra personelin nöbetlerini ve bakiye sağlamasını denetler.");
                           setTimeout(() => setCarryoverSuccess(null), 4500);
                           return;
                         }
@@ -1127,6 +1238,38 @@ export default function App() {
                       )}
                     </button>
 
+                    {/* 👥 KADRO & GRUP YÖNETİMİ BUTONU */}
+                    <button
+                      type="button"
+                      id="btn-open-staff-manager"
+                      onClick={() => {
+                        if (!isAdmin) {
+                          setIsLoginModalOpen(true);
+                          return;
+                        }
+                        setIsStaffManagerModalOpen(true);
+                      }}
+                      className={`w-full p-3 rounded-2xl text-left border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 active:scale-98 flex items-center justify-between gap-3 group ${
+                        isDarkMode
+                          ? 'bg-gradient-to-r from-blue-950/70 to-indigo-950/70 text-blue-300 border-blue-800/60 hover:border-blue-500 hover:bg-blue-900/60'
+                          : 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-950 border-blue-200 hover:border-blue-300 hover:bg-blue-100/60'
+                      }`}
+                      title="Gruba personel ekle, sil, grubu 3 kişi yap veya gruplar arasında taşı"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-black truncate">Kadro & Grup Yönetimi</div>
+                          <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium truncate">Personel Ekle / Sil / 3 Kişi Yap</div>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-extrabold shrink-0">
+                        {activeDepartment.staff.length} Kişi
+                      </span>
+                    </button>
+
                     {/* Excel & Yıllık Plan İndir (Hesaplandıysa) */}
                     {isScheduleGenerated && (
                       <div className="grid grid-cols-2 gap-2 pt-1">
@@ -1188,6 +1331,10 @@ export default function App() {
                   onFillDemoNames={handleFillDemoNames}
                   selectedStaffId={selectedStaffId}
                   onSelectStaff={setSelectedStaffId}
+                  onOpenStaffManagerModal={() => setIsStaffManagerModalOpen(true)}
+                  onAddStaff={handleAddStaff}
+                  onDeleteStaff={handleDeleteStaff}
+                  onChangeStaffGroup={handleChangeStaffGroup}
                 />
               </aside>
 
@@ -1424,65 +1571,101 @@ export default function App() {
                 )}
               </div>
             </div>
+
+            {/* Alt Bilgi & Belirgin Sürüm Rozeti */}
+            <footer className="w-full pt-8 pb-4 flex items-center justify-center text-xs relative z-10 px-1 print:hidden">
+              <div className="inline-flex items-center gap-2.5 font-bold text-slate-900 dark:text-white bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-1.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-md">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse shadow-xs shadow-emerald-500/50" />
+                <span className="text-xs tracking-wide">RSMC Operasyon Merkezi</span>
+                <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
+                <span className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300 font-mono text-xs font-black border border-indigo-300/70 dark:border-indigo-700/60">
+                  {APP_VERSION_LABEL}
+                </span>
+              </div>
+            </footer>
           </main>
         )}
       </div>
 
       {/* Özel Gün Değişimi Modalı */}
-      <ShiftOverrideModal
-        isOpen={!!overrideModalShift}
-        onClose={() => setOverrideModalShift(null)}
-        shift={overrideModalShift}
-        onOverride={handleOverrideShift}
-        onReset={handleResetOverride}
-        isDark={isDarkMode}
-        isAdmin={isAdmin}
-        onRequestAdminLogin={() => setIsLoginModalOpen(true)}
-      />
+      {overrideModalShift && (
+        <ShiftOverrideModal
+          isOpen={!!overrideModalShift}
+          onClose={() => setOverrideModalShift(null)}
+          shift={overrideModalShift}
+          onOverride={handleOverrideShift}
+          onReset={handleResetOverride}
+          isDark={isDarkMode}
+          isAdmin={isAdmin}
+          onRequestAdminLogin={() => setIsLoginModalOpen(true)}
+        />
+      )}
 
       {/* Yönetici Girişi Modalı */}
-      <ManagerLoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onSuccess={handleManagerLoginSuccess}
-        isDark={isDarkMode}
-      />
+      {isLoginModalOpen && (
+        <ManagerLoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onSuccess={handleManagerLoginSuccess}
+          isDark={isDarkMode}
+        />
+      )}
 
-      {/* 🤖 Akıllı Denetçi Ajanı Rapor Modalı */}
-      <AgentAuditModal
-        isOpen={isAuditModalOpen}
-        onClose={() => setIsAuditModalOpen(false)}
-        summary={monthSummary}
-        departmentName={activeDepartment.name}
-        isDark={isDarkMode}
-      />
+      {/* 📋 Yönetici Denetim Raporu Modalı */}
+      {isAuditModalOpen && (
+        <AgentAuditModal
+          isOpen={isAuditModalOpen}
+          onClose={() => setIsAuditModalOpen(false)}
+          summary={monthSummary}
+          departmentName={activeDepartment.name}
+          isDark={isDarkMode}
+        />
+      )}
 
       {/* 👤 Personel Denetleme Ajanı Modalı */}
-      <StaffAuditModal
-        isOpen={isStaffAuditModalOpen}
-        onClose={() => setIsStaffAuditModalOpen(false)}
-        summary={monthSummary}
-        department={activeDepartment}
-        departmentName={activeDepartment.name}
-        selectedYear={selectedYear}
-        selectedMonth={selectedMonth}
-        leavesByMonth={leavesByMonth}
-        isDark={isDarkMode}
-      />
+      {isStaffAuditModalOpen && (
+        <StaffAuditModal
+          isOpen={isStaffAuditModalOpen}
+          onClose={() => setIsStaffAuditModalOpen(false)}
+          summary={monthSummary}
+          department={activeDepartment}
+          departmentName={activeDepartment.name}
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          leavesByMonth={leavesByMonth}
+          isDark={isDarkMode}
+        />
+      )}
 
       {/* 🏖️ Personel İzin Yönetimi Modalı */}
-      <LeaveManagementModal
-        isOpen={isLeaveModalOpen}
-        onClose={() => setIsLeaveModalOpen(false)}
-        staffList={activeStaffList}
-        leaves={currentMonthLeaves}
-        onAddLeave={handleAddLeave}
-        onDeleteLeave={handleDeleteLeave}
-        selectedMonth={selectedMonth}
-        selectedYear={selectedYear}
-        totalDaysInMonth={monthSummary.totalDays}
-        isDark={isDarkMode}
-      />
+      {isLeaveModalOpen && (
+        <LeaveManagementModal
+          isOpen={isLeaveModalOpen}
+          onClose={() => setIsLeaveModalOpen(false)}
+          staffList={activeStaffList}
+          leaves={currentMonthLeaves}
+          onAddLeave={handleAddLeave}
+          onDeleteLeave={handleDeleteLeave}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          totalDaysInMonth={monthSummary.totalDays}
+          isDark={isDarkMode}
+          isAdmin={isAdmin}
+          onRequestAdminLogin={() => setIsLoginModalOpen(true)}
+        />
+      )}
+
+      {/* 👥 Kadro & Grup Yönetimi Modalı (Gruba Personel Ekle / Sil / 3 Kişi Yap) */}
+      {isStaffManagerModalOpen && (
+        <StaffManagerModal
+          isOpen={isStaffManagerModalOpen}
+          onClose={() => setIsStaffManagerModalOpen(false)}
+          staffList={activeDepartment.staff}
+          onSave={handleSaveAllStaff}
+          departmentName={activeDepartment.name}
+          isDark={isDarkMode}
+        />
+      )}
     </div>
   );
 }

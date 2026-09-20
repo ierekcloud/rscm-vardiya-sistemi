@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DayShift, GroupId, GROUPS_CONFIG } from '../types';
 import { Clock, Users, X, Check, RotateCcw } from 'lucide-react';
 
@@ -23,9 +23,15 @@ export const ShiftOverrideModal: React.FC<ShiftOverrideModalProps> = ({
   isAdmin = false,
   onRequestAdminLogin,
 }) => {
-  if (!isOpen || !shift) return null;
+  const [selectedGroup, setSelectedGroup] = useState<GroupId>(shift?.dutyGroupId || 'A');
 
-  const [selectedGroup, setSelectedGroup] = useState<GroupId>(shift.dutyGroupId);
+  useEffect(() => {
+    if (shift) {
+      setSelectedGroup(shift.dutyGroupId);
+    }
+  }, [shift]);
+
+  if (!isOpen || !shift) return null;
 
   const handleSave = () => {
     if (!isAdmin) {

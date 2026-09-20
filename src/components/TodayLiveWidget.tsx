@@ -83,28 +83,32 @@ export const TodayLiveWidget: React.FC<TodayLiveWidgetProps> = ({
 
             <div className="flex items-baseline gap-3">
               <span
-                className={`text-2xl sm:text-3xl font-black tracking-tight tabular-nums font-mono ${
-                  isDark ? 'text-white' : 'text-slate-900'
+                className={`text-3xl sm:text-4xl font-black tracking-tight tabular-nums font-mono ${
+                  isDark ? 'text-blue-400 drop-shadow-[0_2px_10px_rgba(59,130,246,0.3)]' : 'text-blue-700'
                 }`}
               >
                 {formattedLiveTime}
               </span>
               <span
-                className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
+                className={`text-xs font-black px-2.5 py-1 rounded-lg border uppercase tracking-wider ${
                   isDark
-                    ? 'bg-slate-800 text-slate-300 border-slate-700'
-                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                    ? 'bg-blue-950/70 text-blue-300 border-blue-700/60'
+                    : 'bg-blue-100 text-blue-900 border-blue-300'
                 }`}
               >
-                Canlı Zaman
+                CANLI
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-bold">
-              <CalendarIcon className="w-4 h-4 text-indigo-500 shrink-0" />
-              <span className={isDark ? 'text-slate-200' : 'text-slate-800'}>
-                {formattedLiveDate}
-              </span>
+            <div
+              className={`flex items-center gap-2.5 text-sm sm:text-base font-black px-3 py-1.5 rounded-xl border shadow-xs ${
+                isDark
+                  ? 'bg-slate-900 border-blue-900/60 text-blue-300'
+                  : 'bg-blue-50/80 border-blue-200 text-blue-800'
+              }`}
+            >
+              <CalendarIcon className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 stroke-[2.5]" />
+              <span className="text-blue-800 dark:text-blue-300 font-black">{formattedLiveDate}</span>
             </div>
           </div>
 

@@ -108,14 +108,10 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                   <th
                     key={s.dayNumber}
                     className={`px-0 py-1 text-center min-w-[28px] sm:min-w-[32px] w-[30px] transition-colors border-r ${
-                      isSun
+                      isWeekend
                         ? isDark
-                          ? 'bg-amber-500/35 text-amber-100 border-amber-500/60 font-black'
-                          : 'bg-amber-300 text-amber-950 border-amber-400 font-black'
-                        : isSat
-                        ? isDark
-                          ? 'bg-amber-500/25 text-amber-200 border-amber-500/50 font-black'
-                          : 'bg-amber-200 text-amber-950 border-amber-300 font-black'
+                          ? 'bg-amber-500/30 text-amber-100 border-amber-500/60 font-black'
+                          : 'bg-amber-200 text-amber-950 border-amber-400 font-black'
                         : isDark
                         ? 'text-slate-300 border-slate-800/80 hover:bg-slate-800/30'
                         : 'text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -138,14 +134,10 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                       </span>
                       <span
                         className={`text-[8px] font-black uppercase mt-0.5 tracking-tight ${
-                          isSun
+                          isWeekend
                             ? isDark
                               ? 'text-amber-300'
                               : 'text-amber-950 font-black'
-                            : isSat
-                            ? isDark
-                              ? 'text-amber-300'
-                              : 'text-amber-900 font-black'
                             : isDark
                             ? 'text-slate-500'
                             : 'text-slate-400'
@@ -228,14 +220,10 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                     const isSun = dayOfWeek === 0;
                     const isWeekend = isSat || isSun;
 
-                    const cellBg = isSun
+                    const cellBg = isWeekend
                       ? isDark
-                        ? 'bg-amber-950/50 border-r border-amber-500/40'
+                        ? 'bg-amber-950/40 border-r border-amber-500/40'
                         : 'bg-amber-100/90 border-r border-amber-300/90'
-                      : isSat
-                      ? isDark
-                        ? 'bg-amber-950/35 border-r border-amber-500/35'
-                        : 'bg-amber-50/90 border-r border-amber-200/90'
                       : isDark
                       ? 'border-r border-slate-800/60'
                       : 'border-r border-slate-200/80';

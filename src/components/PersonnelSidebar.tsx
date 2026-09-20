@@ -13,6 +13,9 @@ import {
   Sparkles,
   Search,
   Shield,
+  Trash2,
+  UserPlus,
+  Settings,
 } from 'lucide-react';
 
 interface PersonnelSidebarProps {
@@ -26,6 +29,10 @@ interface PersonnelSidebarProps {
   onFillDemoNames: () => void;
   selectedStaffId?: string | null;
   onSelectStaff?: (staffId: string) => void;
+  onOpenStaffManagerModal?: () => void;
+  onAddStaff?: (name: string, groupId: GroupId) => void;
+  onDeleteStaff?: (staffId: string) => void;
+  onChangeStaffGroup?: (staffId: string, newGroupId: GroupId) => void;
 }
 
 export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
@@ -39,8 +46,12 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
   onFillDemoNames,
   selectedStaffId,
   onSelectStaff,
+  onOpenStaffManagerModal,
+  onAddStaff,
+  onDeleteStaff,
+  onChangeStaffGroup,
 }) => {
-  // Hangi grupların açık olduğunu tutan state (Varsayılan olarak hepsi kapalı)
+  // Hangi grupların açık olduğunu tutan state (Varsayılan olarak hepsi açık veya kapalı)
   const [openGroups, setOpenGroups] = useState<Record<GroupId, boolean>>({
     A: false,
     B: false,
@@ -52,11 +63,38 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
+  // Hızlı grup bazlı inline personel ekleme inputları
+  const [inlineAddNames, setInlineAddNames] = useState<Record<GroupId, string>>({
+    A: '',
+    B: '',
+    C: '',
+    D: '',
+  });
+
   const toggleGroup = (grp: GroupId) => {
     setOpenGroups((prev) => ({
       ...prev,
       [grp]: !prev[grp],
     }));
+  };
+
+  const handleInlineAdd = (grpId: GroupId) => {
+    const rawName = inlineAddNames[grpId]?.trim();
+    if (!rawName) return;
+    if (onAddStaff) {
+      onAddStaff(rawName, grpId);
+      setInlineAddNames((prev) => ({ ...prev, [grpId]: '' }));
+    }
+  };
+
+  const handleOpenManagerModal = () => {
+    if (!isAdmin) {
+      if (onRequestAdminLogin) onRequestAdminLogin();
+      return;
+    }
+    if (onOpenStaffManagerModal) {
+      onOpenStaffManagerModal();
+    }
   };
 
   const groupKeys: GroupId[] = ['A', 'B', 'C', 'D'];
@@ -112,13 +150,17 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
               ) : (
                 <button
                   type="button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    setIsEditing(true);
+                    // Düzenleme moduna geçildiğinde grupları aç
+                    setOpenGroups({ A: true, B: true, C: true, D: true });
+                  }}
                   className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full border transition-colors cursor-pointer ${
                     isDark
                       ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
                       : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                   }`}
-                  title="Personel İsimlerini Düzenle"
+                  title="Personel İsimlerini ve Gruplarını Hızlıca Düzenle"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-slate-400" />
                   <span>Düzenle</span>
@@ -133,7 +175,7 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                     ? 'border-slate-700/80 bg-slate-800/60 text-slate-400 hover:text-indigo-300 hover:border-indigo-500/40'
                     : 'border-slate-200 bg-slate-100 text-slate-500 hover:text-indigo-600 hover:border-indigo-300'
                 }`}
-                title="İsimleri değiştirmek için Yönetici Girişi gereklidir"
+                title="İsim ve grup düzenlemeleri için Yönetici Girişi gereklidir"
               >
                 <Shield className="w-3 h-3" />
                 <span>Yönetici</span>
@@ -141,6 +183,21 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
             )}
           </div>
         </div>
+
+        {/* Kadro & Grup Yönetim Butonu (Öne Çıkarılmış & Kolay Ulaşılabilir) */}
+        <button
+          type="button"
+          onClick={handleOpenManagerModal}
+          className={`w-full py-2 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-black transition-all cursor-pointer shadow-xs ${
+            isDark
+              ? 'bg-indigo-950/40 border-indigo-500/40 text-indigo-300 hover:bg-indigo-900/50 hover:border-indigo-400'
+              : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300'
+          }`}
+          title="Tüm grupları 3 kişi yapma, personel ekleme/silme ve taşıma ekranı"
+        >
+          <Settings className="w-3.5 h-3.5 text-indigo-500" />
+          <span>Grup & Kadro Yönetimi (Ekle / Sil / 3 Kişi Yap)</span>
+        </button>
 
         {/* Hızlı Arama Alanı */}
         <div className="relative">
@@ -158,11 +215,11 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
           />
         </div>
 
-        {/* Düzenleme Modu Açıkken Örnek İsim Doldurma */}
+        {/* Düzenleme Modu Açıkken Örnek İsim Doldurma ve Bilgi */}
         {isEditing && (
           <div className="flex items-center justify-between pt-1">
             <span className="text-[11px] text-indigo-500 font-bold">
-              İsimleri değiştirebilirsiniz:
+              Düzenleme Modu Aktif
             </span>
             <button
               type="button"
@@ -252,6 +309,12 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                     isDark ? 'border-slate-800 divide-y divide-slate-800/60' : 'border-slate-200 divide-y divide-slate-100'
                   }`}
                 >
+                  {allGroupStaff.length === 0 && (
+                    <div className="p-3 text-center text-xs text-slate-400 dark:text-slate-500">
+                      Bu grupta personel bulunmuyor.
+                    </div>
+                  )}
+
                   {filteredStaff.map((staff) => {
                     const stats = summary.staffStats[staff.id];
                     const isSelected = selectedStaffId === staff.id;
@@ -269,17 +332,56 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                         } ${onSelectStaff ? 'cursor-pointer' : ''}`}
                       >
                         {isEditing ? (
-                          <div className="space-y-1">
-                            <input
-                              type="text"
-                              value={staff.name}
-                              onChange={(e) => onUpdateStaffName(staff.id, e.target.value)}
-                              className={`w-full text-xs px-2.5 py-1.5 rounded-lg border font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
-                                isDark
-                                  ? 'border-slate-700 bg-slate-800 text-white'
-                                  : 'border-slate-300 bg-white text-slate-900'
-                              }`}
-                            />
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={staff.name}
+                                onChange={(e) => onUpdateStaffName(staff.id, e.target.value)}
+                                placeholder="Personel Adı"
+                                className={`w-full text-xs px-2.5 py-1.5 rounded-lg border font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                                  isDark
+                                    ? 'border-slate-700 bg-slate-800 text-white'
+                                    : 'border-slate-300 bg-white text-slate-900'
+                                }`}
+                              />
+
+                              {/* Grup Değiştirme */}
+                              {onChangeStaffGroup && (
+                                <select
+                                  value={staff.groupId}
+                                  onChange={(e) => onChangeStaffGroup(staff.id, e.target.value as GroupId)}
+                                  title="Grubu Değiştir"
+                                  className={`text-[11px] font-bold px-1.5 py-1.5 rounded-lg border focus:outline-none cursor-pointer shrink-0 ${
+                                    isDark
+                                      ? 'border-slate-700 bg-slate-800 text-slate-200'
+                                      : 'border-slate-300 bg-slate-100 text-slate-700'
+                                  }`}
+                                >
+                                  <option value="A">Grup A</option>
+                                  <option value="B">Grup B</option>
+                                  <option value="C">Grup C</option>
+                                  <option value="D">Grup D</option>
+                                </select>
+                              )}
+
+                              {/* Personel Silme */}
+                              {onDeleteStaff && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`"${staff.name}" personelini gruptan silmek istediğinize emin misiniz?`)) {
+                                      onDeleteStaff(staff.id);
+                                    }
+                                  }}
+                                  title="Personeli Sil"
+                                  className="p-1.5 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shrink-0 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           <div className="flex items-center justify-between gap-2">
@@ -382,6 +484,41 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                       </div>
                     );
                   })}
+
+                  {/* Düzenleme Modunda Gruba Hızlı Personel Ekleme Formu */}
+                  {isEditing && (
+                    <div className="pt-2 mt-1 border-t border-dashed border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          placeholder={`+ ${cfg.name.split(' ')[0]} grubuna ekle...`}
+                          value={inlineAddNames[grp] || ''}
+                          onChange={(e) => setInlineAddNames((prev) => ({ ...prev, [grp]: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleInlineAdd(grp);
+                            }
+                          }}
+                          className={`w-full text-xs px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                            isDark
+                              ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-500'
+                              : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleInlineAdd(grp)}
+                          disabled={!inlineAddNames[grp]?.trim()}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all shrink-0 cursor-pointer shadow-xs"
+                          title="Gruba Personel Ekle"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Ekle</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -399,7 +536,13 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
           <Shield className="w-3.5 h-3.5 text-indigo-500" />
           Toplam: <strong>{department.staff.length} Personel</strong>
         </span>
-        <span className="text-slate-400">4 Nöbet Grubu</span>
+        <button
+          type="button"
+          onClick={handleOpenManagerModal}
+          className="text-indigo-600 dark:text-indigo-400 hover:underline font-bold cursor-pointer"
+        >
+          Kadro Yapılandırması
+        </button>
       </div>
     </aside>
   );
