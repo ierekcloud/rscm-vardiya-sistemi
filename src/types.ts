@@ -57,6 +57,15 @@ export interface Department {
   staff: StaffMember[];
 }
 
+export interface StaffLeave {
+  id: string;
+  staffId: string;
+  startDay: number; // Örn: 2 (2 Ekim)
+  endDay: number;   // Örn: 12 (12 Ekim)
+  type?: 'ANNUAL' | 'REPORT' | 'EXCUSE' | 'OTHER'; // Yıllık İzin, Rapor, Mazeret vb.
+  reason?: string;  // Açıklama
+}
+
 export interface DayShift {
   dayNumber: number;
   date: Date;
@@ -67,6 +76,7 @@ export interface DayShift {
   dutyStaff: StaffMember[];
   supportGroupId?: GroupId; // Denkleştirme / Araya Sıkıştırılan Ek Nöbetçi Grup
   supportStaff?: StaffMember[]; // Araya sıkıştırılan personeller
+  leaves?: { staff: StaffMember; reason?: string }[]; // İzinli personeller
   isCompensated?: boolean; // Bu günde ek denkleştirme nöbeti var mı?
   shiftHours: string; // "07:30 - Ertesi Gün 07:30 (24 Saat)"
   isOverridden?: boolean;
@@ -78,11 +88,52 @@ export interface StaffShiftBalance {
   totalDuties: number;        // Örn: 7 nöbet
   totalHours: number;         // Örn: 168 saat (7 * 24)
   equivalentWorkDays: number; // 1 Nöbet = 3 Gün -> 7 * 3 = 21 Gün
-  targetWorkDays: number;     // Hedef: 26 Gün (Pazarlar hariç 6 gün çalışma esası)
+  targetWorkDays: number;     // Hedef: 26 Gün (İzin varsa izin düşülmüş net hedef)
+  baseTargetWorkDays?: number; // İzin öncesi genel hedef (26 gün)
+  leaveDays?: number;         // Bu ay kullanılan izin iş günü sayısı
   previousCarryoverDays: number; // Önceki aydan devreden bakiye
-  currentMonthDifference: number; // Bu ayki fark: (totalDuties * 3) - 26 gün
+  currentMonthDifference: number; // Bu ayki fark: (totalDuties * 3) - targetWorkDays
   netBalanceDays: number;     // Toplam kümülatif bakiye: previousCarryoverDays + currentMonthDifference
   status: 'DEBTOR' | 'CREDITOR' | 'BALANCED'; // Borçlu / Alacaklı / Denk
+}
+
+export interface FiveDayAnomaly {
+  dayName: string;
+  dayOfWeek: number;
+  dates: number[];
+  affectedStaff: {
+    staffId: string;
+    staffName: string;
+    groupId: GroupId;
+    dutyDates: number[];
+    shiftsOnThisDayCount: number;
+    totalMonthDuties: number;
+    currentMonthDifference: number;
+    netBalanceDays: number;
+    insight: string;
+  }[];
+}
+
+export interface AgentAuditItem {
+  id: string;
+  category: 'CALENDAR_ANOMALY' | 'OVERTIME_CREDIT' | 'DEBT_CARRYOVER' | 'FAIR_DISTRIBUTION' | 'REST_INTEGRITY';
+  severity: 'warning' | 'info' | 'success';
+  title: string;
+  description: string;
+  affectedStaffName?: string;
+  actionTaken: string;
+}
+
+export interface AgentAuditReport {
+  analyzedAt: string;
+  monthName: string;
+  year: number;
+  fiveDaysAnomalies: FiveDayAnomaly[];
+  auditItems: AgentAuditItem[];
+  totalOvertimeStaffCount: number;
+  totalDebtorStaffCount: number;
+  executiveSummary: string;
+  nextMonthOffsetPlan: string;
 }
 
 export interface MonthSummary {
@@ -96,6 +147,8 @@ export interface MonthSummary {
   autoCompensated?: boolean; // Araya sıkıştırma / otomatik denkleştirme aktif mi?
   compensatedShiftsCount?: number; // Kaç nöbet araya sıkıştırıldı?
   validationWarnings?: string[]; // Otomatik kural denetimi hataları
+  auditReport?: AgentAuditReport; // 🤖 RSMC Akıllı Denetçi Ajanı Raporu
+  leaves?: StaffLeave[]; // Ay içindeki personel izinleri
 }
 
 // Departman bazlı aylık bakiye geçmişi (Aylar arası devir için)

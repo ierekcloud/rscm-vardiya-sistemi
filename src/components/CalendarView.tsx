@@ -190,6 +190,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       <span className="truncate">{st.name}</span>
                     </div>
                   ))}
+
+                  {/* İzinli Personeller */}
+                  {shift.leaves && shift.leaves.map((lv) => (
+                    <div
+                      key={`leave-${lv.staff.id}`}
+                      className={`text-[11px] font-bold flex items-center gap-1 truncate px-1.5 py-0.5 rounded border ${
+                        isDark
+                          ? 'text-amber-300 bg-amber-950/40 border-amber-800/60'
+                          : 'text-amber-900 bg-amber-50 border-amber-200'
+                      }`}
+                      title={`${lv.staff.name} - İzinli (${lv.reason || 'İzin'})`}
+                    >
+                      <span className="font-black text-amber-500">X</span>
+                      <span className="truncate opacity-80">{lv.staff.name} (İzinli)</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 

@@ -222,6 +222,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                     const isDuty =
                       shift.dutyStaff.some((s) => s.id === staff.id) ||
                       (shift.supportStaff ? shift.supportStaff.some((s) => s.id === staff.id) : false);
+                    const isLeave = shift.leaves?.some((l) => l.staff.id === staff.id) || false;
                     const dayOfWeek = shift.date.getDay();
                     const isSat = dayOfWeek === 6;
                     const isSun = dayOfWeek === 0;
@@ -241,7 +242,18 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
 
                     return (
                       <td key={shift.dayNumber} className={`text-center p-0 ${cellBg} relative`}>
-                        {isDuty ? (
+                        {isLeave ? (
+                          <div
+                            className={`absolute inset-0 flex items-center justify-center font-black text-xs leading-none tracking-tight shadow-xs ${
+                              isDark
+                                ? 'bg-amber-500/25 text-amber-300 ring-1 ring-inset ring-amber-500/50'
+                                : 'bg-amber-100 text-amber-900 ring-1 ring-inset ring-amber-400'
+                            }`}
+                            title={`${staff.name} - İzinli (Hesaba Katılmaz)`}
+                          >
+                            X
+                          </div>
+                        ) : isDuty ? (
                           <div
                             className={`absolute inset-0 flex items-center justify-center font-black text-[10px] sm:text-[11px] leading-none tracking-tight shadow-xs bg-indigo-600 text-white ring-1 ring-inset ${isDark ? 'ring-indigo-500' : 'ring-indigo-400'}`}
                             title={`${staff.name} - 24 Saat ABC Nöbeti`}
@@ -282,6 +294,29 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Tablo Altı Lejant / Açıklamalar */}
+      <div className={`px-4 py-2.5 border-t flex flex-wrap items-center justify-between gap-3 text-xs ${
+        isDark ? 'border-slate-800 bg-slate-900/60 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
+      }`}>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-600 text-white">ABC</span>
+            <span>24 Saatlik Nöbet</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-500/25 text-amber-600 dark:text-amber-400 border border-amber-500/40">X</span>
+            <span>İzinli / Raporlu (Hesaba Katılmaz)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-400">-</span>
+            <span>İstirahat Günü</span>
+          </div>
+        </div>
+        <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          1 Nöbet = 3 Gün Mesai
+        </div>
       </div>
     </div>
   );

@@ -91,6 +91,7 @@ export const PrintSheet: React.FC<PrintSheetProps> = ({
                 {summary.shifts.map((s) => {
                   const isDuty = s.dutyStaff.some((member) => member.id === st.id);
                   const isSupport = s.supportStaff ? s.supportStaff.some((member) => member.id === st.id) : false;
+                  const isLeave = s.leaves ? s.leaves.some((l) => l.staff.id === st.id) : false;
                   const dayOfWeek = s.date.getDay();
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
@@ -98,14 +99,16 @@ export const PrintSheet: React.FC<PrintSheetProps> = ({
                     <td
                       key={s.dayNumber}
                       className={`border border-black p-1 text-center font-bold ${
-                        isDuty || isSupport
+                        isLeave
+                          ? 'bg-amber-100 text-amber-900 font-black'
+                          : isDuty || isSupport
                           ? 'bg-stone-300 font-black text-black'
                           : isWeekend
                           ? 'bg-stone-100 font-light'
                           : ''
                       }`}
                     >
-                      {isDuty || isSupport ? 'ABC' : '-'}
+                      {isLeave ? 'X' : isDuty || isSupport ? 'ABC' : '-'}
                     </td>
                   );
                 })}

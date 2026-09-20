@@ -7,6 +7,7 @@ import {
   DayShift,
   MonthlyDepartmentHistory,
   StaffShiftBalance,
+  StaffLeave,
 } from './types';
 import {
   DEFAULT_DEPARTMENTS,
@@ -26,6 +27,9 @@ import { ShiftOverrideModal } from './components/ShiftOverrideModal';
 import { PrintSheet } from './components/PrintSheet';
 import { DepartmentPortal } from './components/DepartmentPortal';
 import { ManagerLoginModal } from './components/ManagerLoginModal';
+import { AgentAuditModal } from './components/AgentAuditModal';
+import { StaffAuditModal } from './components/StaffAuditModal';
+import { LeaveManagementModal } from './components/LeaveManagementModal';
 import { ManagerCredentials } from './utils/auth';
 
 import { PersonnelSidebar } from './components/PersonnelSidebar';
@@ -58,7 +62,12 @@ import {
   Unlock,
   LogOut,
   AlertTriangle,
+  Bot,
+  UserCheck,
   ChevronDown,
+  Palmtree,
+  KeyRound,
+  Timer,
 } from 'lucide-react';
 
 const STORAGE_KEY_DEPTS_V4 = 'vardiya_telekom_depts_v4';
@@ -141,6 +150,50 @@ export default function App() {
   });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
 
+  // Yönetici 5 Dakikalık Oturum Süresi (300 Saniye)
+  const MANAGER_SESSION_TIMEOUT_SEC = 300;
+  const [sessionRemainingSec, setSessionRemainingSec] = useState<number>(() => {
+    try {
+      const savedAuth = sessionStorage.getItem('vardiya_manager_auth');
+      const savedLoginTime = sessionStorage.getItem('vardiya_manager_login_time');
+      if (savedAuth && savedLoginTime) {
+        const elapsed = Math.floor((Date.now() - Number(savedLoginTime)) / 1000);
+        const left = MANAGER_SESSION_TIMEOUT_SEC - elapsed;
+        return left > 0 ? left : 0;
+      }
+    } catch {
+      // ignore
+    }
+    return MANAGER_SESSION_TIMEOUT_SEC;
+  });
+
+  // Oturum Süresi Sayacı ve Otomatik Çıkış (5 Dakika)
+  useEffect(() => {
+    if (!currentManager) {
+      setSessionRemainingSec(MANAGER_SESSION_TIMEOUT_SEC);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setSessionRemainingSec((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleManagerLogout(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentManager]);
+
+  const formatSessionTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
   // Tarih Seçimi (Yıl & Ay) - Eylül ayı için 2026 yılı
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedMonth, setSelectedMonth] = useState<number>(9); // 9 = Ekim (0-indexed)
@@ -179,6 +232,21 @@ export default function App() {
 
   // Modal
   const [overrideModalShift, setOverrideModalShift] = useState<DayShift | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState<boolean>(false);
+  const [isStaffAuditModalOpen, setIsStaffAuditModalOpen] = useState<boolean>(false);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
+
+  // Personel İzin / Rapor Kayıtları (Ay ve Birim bazlı kalıcı saklama)
+  const STORAGE_KEY_LEAVES_V4 = 'vardiya_telekom_leaves_v4';
+  const [leavesByMonth, setLeavesByMonth] = useState<Record<string, StaffLeave[]>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_LEAVES_V4);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return {};
+  });
 
   // Kurumsal Vardiya Planı Oluşturulma Durumu (Varsayılan olarak direkt aktif ve hesaplanmış gelir)
   const [isScheduleGenerated, setIsScheduleGenerated] = useState<boolean>(false);
@@ -198,10 +266,11 @@ export default function App() {
       localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(departments));
       localStorage.setItem(STORAGE_KEY_ACTIVE_DEPT_V4, activeDeptId);
       localStorage.setItem(STORAGE_KEY_BALANCES_V4, JSON.stringify(balancesHistory));
+      localStorage.setItem(STORAGE_KEY_LEAVES_V4, JSON.stringify(leavesByMonth));
     } catch (e) {
       console.error(e);
     }
-  }, [departments, activeDeptId, balancesHistory]);
+  }, [departments, activeDeptId, balancesHistory, leavesByMonth]);
 
   // Aktif Departman
   const activeDepartment = useMemo(() => {
@@ -276,6 +345,7 @@ export default function App() {
         }
       });
 
+      const stepLeaves = leavesByMonth[stepKey] || [];
       const summary = generateMonthSchedule(
         curYear,
         curMonth,
@@ -284,7 +354,8 @@ export default function App() {
         {},
         stepInputBalances,
         undefined,
-        true
+        true,
+        stepLeaves
       );
 
       runningBalances = {};
@@ -314,7 +385,32 @@ export default function App() {
     prevMonthKey,
     selectedMonth,
     selectedYear,
+    leavesByMonth,
   ]);
+
+  // Seçili ay ve birime ait izin listesi
+  const monthLeaveKey = `${activeDepartment.id}_${selectedYear}_${selectedMonth}`;
+  const currentMonthLeaves = useMemo(() => {
+    return leavesByMonth[monthLeaveKey] || [];
+  }, [leavesByMonth, monthLeaveKey]);
+
+  const handleAddLeave = (newLeave: Omit<StaffLeave, 'id'>) => {
+    const leave: StaffLeave = {
+      ...newLeave,
+      id: `leave-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    };
+    setLeavesByMonth((prev) => ({
+      ...prev,
+      [monthLeaveKey]: [...(prev[monthLeaveKey] || []), leave],
+    }));
+  };
+
+  const handleDeleteLeave = (id: string) => {
+    setLeavesByMonth((prev) => ({
+      ...prev,
+      [monthLeaveKey]: (prev[monthLeaveKey] || []).filter((l) => l.id !== id),
+    }));
+  };
 
   // Aylık Çizelge ve İstatistik Özeti
   const monthSummary = useMemo(() => {
@@ -326,9 +422,10 @@ export default function App() {
       overrides,
       carryoverBalances,
       undefined,
-      true
+      true,
+      currentMonthLeaves
     );
-  }, [selectedYear, selectedMonth, undefined, activeStaffList, overrides, carryoverBalances]);
+  }, [selectedYear, selectedMonth, undefined, activeStaffList, overrides, carryoverBalances, currentMonthLeaves]);
 
   // Portalden birim seçilince
   const handleSelectDepartmentFromPortal = (deptId: string) => {
@@ -380,8 +477,10 @@ export default function App() {
   // Yönetici Giriş Başarılı Olduğunda
   const handleManagerLoginSuccess = (mgr: ManagerCredentials) => {
     setCurrentManager(mgr);
+    setSessionRemainingSec(MANAGER_SESSION_TIMEOUT_SEC);
     try {
       sessionStorage.setItem('vardiya_manager_auth', JSON.stringify(mgr));
+      sessionStorage.setItem('vardiya_manager_login_time', Date.now().toString());
     } catch (e) {
       console.error(e);
     }
@@ -392,20 +491,26 @@ export default function App() {
     setOverrides({});
     setManualCarryovers({});
     setIsScheduleGenerated(true);
-    setCarryoverSuccess(`${mgr.departmentName} Yöneticisi (${mgr.registryNumber}) olarak giriş yapıldı. Düzenleme yetkiniz aktif.`);
+    setCarryoverSuccess(`${mgr.departmentName} Yöneticisi (${mgr.registryNumber}) olarak giriş yapıldı. 5 dakikalık yetkili oturumunuz başladı.`);
     setTimeout(() => setCarryoverSuccess(null), 4500);
   };
 
-  // Yönetici Çıkışı
-  const handleManagerLogout = () => {
+  // Yönetici Çıkışı (isAutoTimeout = true ise 5 dk dolduğu için çıkış yapılmıştır)
+  const handleManagerLogout = (isAutoTimeout: boolean = false) => {
     setCurrentManager(null);
+    setSessionRemainingSec(MANAGER_SESSION_TIMEOUT_SEC);
     try {
       sessionStorage.removeItem('vardiya_manager_auth');
+      sessionStorage.removeItem('vardiya_manager_login_time');
     } catch (e) {
       console.error(e);
     }
-    setCarryoverSuccess('Yönetici oturumu kapatıldı. Düzenleme yetkisi kaldırıldı.');
-    setTimeout(() => setCarryoverSuccess(null), 3000);
+    if (isAutoTimeout) {
+      setCarryoverSuccess('Güvenlik nedeniyle 5 dakikalık yönetici oturum süreniz doldu ve sistemden otomatik çıkış yapıldı.');
+    } else {
+      setCarryoverSuccess('Yönetici oturumu kapatıldı. Düzenleme yetkisi kaldırıldı.');
+    }
+    setTimeout(() => setCarryoverSuccess(null), 4000);
   };
 
   // Personel İsim Güncelleme (Yönetici Kontrollü)
@@ -628,19 +733,57 @@ export default function App() {
 
               
               {currentManager ? (
-                <button
-                  type="button"
-                  onClick={handleManagerLogout}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-full border transition-all cursor-pointer shadow-xs ${
-                    isDarkMode
-                      ? 'bg-rose-950/40 border-rose-800/50 hover:bg-rose-900/60 text-rose-300'
-                      : 'bg-white border-rose-200 hover:bg-rose-50 text-rose-700'
-                  }`}
-                  title="Yönetici Çıkışı"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">ÇIKIŞ</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Yönetici Bilgisi & Canlı 5 Dk Süre Sayacı */}
+                  <div
+                    className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${
+                      isDarkMode
+                        ? 'bg-indigo-950/40 border-indigo-800/60 text-indigo-300'
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+                    }`}
+                    title="Yönetici Oturumu & Kalan Süre"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <span className="hidden md:inline font-extrabold">{currentManager.departmentName}</span>
+                    <span className="text-[11px] opacity-75 font-mono">({currentManager.registryNumber})</span>
+                    
+                    {/* 5 Dakikalık Sayaç */}
+                    <div className="flex items-center gap-1 pl-1.5 ml-1 border-l border-indigo-400/30 text-amber-500 font-mono text-[11px]" title="5 dakikalık oturumun kalan süresi">
+                      <Timer className="w-3 h-3 animate-pulse text-amber-500" />
+                      <span>{formatSessionTime(sessionRemainingSec)}</span>
+                    </div>
+                  </div>
+
+                  {/* Şifremi Değiştir / Yönet */}
+                  <button
+                    type="button"
+                    onClick={() => setIsLoginModalOpen(true)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-full border transition-all cursor-pointer shadow-xs ${
+                      isDarkMode
+                        ? 'bg-slate-800/90 border-slate-700 hover:bg-slate-700 text-slate-200'
+                        : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
+                    }`}
+                    title="Yönetici Şifrenizi Değiştirin veya Güncelleyin"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-indigo-500" />
+                    <span className="hidden md:inline">Şifre Değiştir</span>
+                  </button>
+
+                  {/* Çıkış Yap */}
+                  <button
+                    type="button"
+                    onClick={() => handleManagerLogout(false)}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-full border transition-all cursor-pointer shadow-xs ${
+                      isDarkMode
+                        ? 'bg-rose-950/40 border-rose-800/50 hover:bg-rose-900/60 text-rose-300'
+                        : 'bg-white border-rose-200 hover:bg-rose-50 text-rose-700'
+                    }`}
+                    title="Yönetici Çıkışı Yap"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">ÇIKIŞ</span>
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -682,10 +825,10 @@ export default function App() {
           />
         ) : (
           /* BİRİM SEÇİLDİKTEN SONRA AÇILAN KURUMSAL YÖNETİM SAYFASI */
-          <main className="w-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <main className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Devir Başarı Bildirimi */}
             {carryoverSuccess && (
-              <div className="p-5 rounded-[2rem] bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-sm font-bold flex items-center justify-between shadow-lg shadow-emerald-500/5">
+              <div className="p-4 sm:p-5 rounded-[2rem] bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-sm font-bold flex items-center justify-between shadow-lg shadow-emerald-500/5">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-500 rounded-xl">
                     <CheckCircle className="w-5 h-5 text-white" />
@@ -695,469 +838,592 @@ export default function App() {
               </div>
             )}
 
-            {/* YÖNETİCİ KONTROL PANELİ - PREMIUM OVAL TASARIM */}
-            <section
-              className={`rounded-[2.5rem] border transition-all duration-500 p-6 sm:p-8 shadow-2xl backdrop-blur-xl ${
-                isDarkMode
-                  ? 'bg-slate-900/80 border-slate-800 text-slate-100 shadow-indigo-500/5'
-                  : 'bg-white/90 border-slate-100 text-slate-800 shadow-slate-200/50'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 flex-wrap">
-                {/* Sol: Ay ve Yıl Seçimi + TEK VE NET "Vardiya Oluştur" Butonu */}
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <div
-                    className={`flex items-center gap-1 px-2 py-1.5 rounded-full border shrink-0 ${
-                      isDarkMode
-                        ? 'bg-slate-900/90 border-slate-800'
-                        : 'bg-slate-100/90 border-slate-200'
-                    }`}
-                  >
-                    <button
-                      onClick={handlePrevMonth}
-                      className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-                        isDarkMode
-                          ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                      title="Önceki Ay"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-
-                    <select
-                      id="select-month-main"
-                      value={selectedMonth}
-                      onChange={(e) => {
-                        setSelectedMonth(Number(e.target.value));
-                        setOverrides({});
-                        setManualCarryovers({});
-                      }}
-                      className={`text-xs sm:text-sm font-bold bg-transparent py-1 px-2.5 focus:outline-none cursor-pointer ${
-                        isDarkMode ? 'text-white' : 'text-slate-900'
-                      }`}
-                    >
-                      {TURKISH_MONTHS.map((m, idx) => {
-                        if (selectedYear === 2026 && idx < 9) return null; // Sadece Ekim ve sonrası
-                        return (
-                          <option
-                            key={m}
-                            value={idx}
-                            className={isDarkMode ? 'bg-slate-900 text-white font-bold' : 'bg-white text-slate-900 font-bold'}
-                          >
-                            {m}
-                          </option>
-                        );
-                      })}
-                    </select>
-
-                    <select
-                      id="select-year-main"
-                      value={selectedYear}
-                      onChange={(e) => {
-                        const newYear = Number(e.target.value);
-                        setSelectedYear(newYear);
-                        // Eğer 2026'ya dönüldüyse ve mevcut ay Ekim'den küçükse, Ekim'e al
-                        if (newYear === 2026 && selectedMonth < 9) {
-                          setSelectedMonth(9);
-                        }
-                        setOverrides({});
-                        setManualCarryovers({});
-                      }}
-                      className={`text-xs sm:text-sm font-bold bg-transparent py-1 px-2 focus:outline-none cursor-pointer ${
-                        isDarkMode ? 'text-white' : 'text-slate-900'
-                      }`}
-                    >
-                      {[2026, 2027, 2028, 2029, 2030, 2031].map((y) => (
-                        <option
-                          key={y}
-                          value={y}
-                          className={isDarkMode ? 'bg-slate-900 text-white font-bold' : 'bg-white text-slate-900 font-bold'}
-                        >
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      onClick={handleNextMonth}
-                      className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-                        isDarkMode
-                          ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                      title="Sonraki Ay"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+            {/* ANA YERLEŞİM: SOL KONTROL & PERSONEL PANELİ + SAĞ ÇİZELGE VE SEKME ALANI */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              {/* SOL SÜTUN: OPERASYON, DÖNEM SEÇİMİ, EYLEMLER VE PERSONEL LİSTESİ */}
+              <aside className="w-full lg:w-80 xl:w-88 shrink-0 flex flex-col gap-4">
+                {/* 1. HIZLI OPERASYON & EYLEMLER KARTI */}
+                <div
+                  className={`rounded-3xl border transition-all duration-300 p-5 shadow-xl backdrop-blur-xl flex flex-col gap-4 ${
+                    isDarkMode
+                      ? 'bg-[#0F1629]/95 border-slate-800 text-slate-100 shadow-indigo-500/5'
+                      : 'bg-white/95 border-slate-200/90 text-slate-800 shadow-[0_10px_30px_rgba(0,0,0,0.03)]'
+                  }`}
+                >
+                  {/* Kart Başlığı & Birim Rozeti */}
+                  <div className="flex items-center justify-between border-b pb-3.5 border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <CalendarIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h2 className="text-[10px] font-black tracking-widest uppercase text-slate-400">İŞLEM MERKEZİ</h2>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-black text-slate-800 dark:text-white truncate max-w-[140px]">{activeDepartment.name}</p>
+                          {activeDepartment.id === 'dep-noc' && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                              PİLOT BİRİM
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {daysInMonth} Gün
+                    </span>
                   </div>
 
+                  {/* DÖNEM SEÇİCİ (AY / YIL) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      DÖNEM (AY & YIL)
+                    </label>
+                    <div
+                      className={`flex items-center justify-between p-1 rounded-2xl border ${
+                        isDarkMode
+                          ? 'bg-slate-900/90 border-slate-800'
+                          : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      <button
+                        onClick={handlePrevMonth}
+                        className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                          isDarkMode
+                            ? 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                        title="Önceki Ay"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        <select
+                          id="select-month-main"
+                          value={selectedMonth}
+                          onChange={(e) => {
+                            setSelectedMonth(Number(e.target.value));
+                            setOverrides({});
+                            setManualCarryovers({});
+                          }}
+                          className={`text-xs font-black bg-transparent py-1 px-1.5 focus:outline-none cursor-pointer ${
+                            isDarkMode ? 'text-white' : 'text-slate-900'
+                          }`}
+                        >
+                          {TURKISH_MONTHS.map((m, idx) => {
+                            if (selectedYear === 2026 && idx < 9) return null;
+                            return (
+                              <option
+                                key={m}
+                                value={idx}
+                                className={isDarkMode ? 'bg-slate-900 text-white font-bold' : 'bg-white text-slate-900 font-bold'}
+                              >
+                                {m}
+                              </option>
+                            );
+                          })}
+                        </select>
+
+                        <select
+                          id="select-year-main"
+                          value={selectedYear}
+                          onChange={(e) => {
+                            const newYear = Number(e.target.value);
+                            setSelectedYear(newYear);
+                            if (newYear === 2026 && selectedMonth < 9) {
+                              setSelectedMonth(9);
+                            }
+                            setOverrides({});
+                            setManualCarryovers({});
+                          }}
+                          className={`text-xs font-black bg-transparent py-1 px-1 focus:outline-none cursor-pointer ${
+                            isDarkMode ? 'text-white' : 'text-slate-900'
+                          }`}
+                        >
+                          {[2026, 2027, 2028, 2029, 2030, 2031].map((y) => (
+                            <option
+                              key={y}
+                              value={y}
+                              className={isDarkMode ? 'bg-slate-900 text-white font-bold' : 'bg-white text-slate-900 font-bold'}
+                            >
+                              {y}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <button
+                        onClick={handleNextMonth}
+                        className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                          isDarkMode
+                            ? 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                        title="Sonraki Ay"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 1. ANA BUTON: VARDİYA HESAPLA */}
                   <button
                     type="button"
                     onClick={handleGenerateSchedule}
-                    className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs sm:text-sm font-black transition-all cursor-pointer shadow-md hover:-translate-y-0.5 active:scale-95 ${
+                    className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer shadow-lg hover:-translate-y-0.5 active:scale-98 flex items-center justify-center gap-2.5 group ${
                       isDarkMode
                         ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white shadow-indigo-600/30 ring-1 ring-indigo-500/30'
                         : 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white shadow-indigo-600/20 ring-1 ring-indigo-400/30'
                     }`}
                     title="Seçili ay için nöbetleri hesaplar ve günceller"
                   >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Vardiya Hesapla</span>
+                    <Play className="w-4 h-4 fill-current transition-transform group-hover:scale-110" />
+                    <span>VARDİYA HESAPLA</span>
                   </button>
 
-                  {/* Excel (CSV) İndir Butonu */}
-                  {isScheduleGenerated && (
-                    <>
-                  <button
-                    type="button"
-                    id="btn-export-month-csv"
-                    onClick={handleExportCSV}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-bold border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 ${
-                      isDarkMode
-                        ? 'bg-slate-800/90 border-slate-700 hover:bg-slate-700 text-slate-200'
-                        : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
-                    }`}
-                    title="Seçili ayın vardiya tablosunu Excel (CSV) olarak indirir"
-                  >
-                    <Download className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Excel (CSV)</span>
-                  </button>
+                  {/* 2. DİKEY HIZLI YÖNETİM BUTONLARI (ALT ALTA) */}
+                  <div className="flex flex-col gap-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      HIZLI YÖNETİM BUTONLARI
+                    </label>
 
-                  {/* 1 YILLIK VARDİYA PLANI İNDİR */}
-                  <button
-                    type="button"
-                    onClick={() => generateYearlyScheduleCsv(selectedYear, selectedMonth, activeDepartment, undefined)}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-bold border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 ${
-                      isDarkMode
-                        ? 'bg-amber-950/30 text-amber-300 border-amber-900/40 hover:bg-amber-900/50'
-                        : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-                    }`}
-                    title="Seçili yıl için 12 aylık tüm planı hesaplar ve Excel (CSV) olarak indirir."
-                  >
-                    <Download className="w-3.5 h-3.5 text-amber-500" />
-                    <span className="hidden sm:inline">1 Yıllık Plan</span>
-                  </button>
-                  </>
-                  )}
-                </div>
+                    {/* 🤖 AKILLI DENETÇİ RAPORU BUTONU */}
+                    <button
+                      type="button"
+                      id="btn-open-agent-audit"
+                      onClick={() => {
+                        if (!isScheduleGenerated) {
+                          setCarryoverSuccess("⚠️ Lütfen önce 'VARDİYA HESAPLA' butonuna basınız. Akıllı Denetçi Raporu, vardiya yazıldıktan sonra takvim ve bakiye analizi yapar.");
+                          setTimeout(() => setCarryoverSuccess(null), 4500);
+                          return;
+                        }
+                        setIsAuditModalOpen(true);
+                      }}
+                      className={`w-full p-3 rounded-2xl text-left border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 active:scale-98 flex items-center justify-between gap-3 group ${
+                        !isScheduleGenerated
+                          ? isDarkMode
+                            ? 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 opacity-90'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 opacity-90'
+                          : isDarkMode
+                            ? 'bg-gradient-to-r from-cyan-950/70 to-blue-950/70 text-cyan-300 border-cyan-800/60 hover:border-cyan-500 hover:bg-cyan-900/60 ring-1 ring-cyan-500/20'
+                            : 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-900 border-cyan-200 hover:border-cyan-300 hover:bg-cyan-100/60 ring-1 ring-cyan-400/20'
+                      }`}
+                      title={
+                        isScheduleGenerated
+                          ? "Takvimdeki 5'li günleri, personellerin fazla nöbetlerini ve devir kuralını denetleyen Yapay Zeka Raporu"
+                          : "Vardiya hesaplandıktan sonra aktifleşir"
+                      }
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                          !isScheduleGenerated
+                            ? 'bg-slate-800/40 text-slate-500 border border-slate-700/50'
+                            : 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-500'
+                        }`}>
+                          <Bot className={`w-4 h-4 ${isScheduleGenerated ? 'animate-pulse' : ''}`} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-black truncate">Akıllı Denetçi Raporu</div>
+                          <div className="text-[10px] opacity-75 font-medium truncate">
+                            {isScheduleGenerated ? 'Nöbet & Devir Analizi' : 'Hesaplama Sonrası Çalışır'}
+                          </div>
+                        </div>
+                      </div>
+                      {!isScheduleGenerated ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
+                          Önce Hesaplayın
+                        </span>
+                      ) : monthSummary.auditReport && monthSummary.auditReport.fiveDaysAnomalies.length > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-slate-950 shrink-0 animate-bounce">
+                          {monthSummary.auditReport.fiveDaysAnomalies.length} Uyarı
+                        </span>
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-cyan-400 opacity-60 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                      )}
+                    </button>
 
-                {/* Sağ: Bilgi Etiketi */}
-                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-400">
+                    {/* 👤 PERSONEL DENETLEME BUTONU (AYRI BUTON) */}
+                    <button
+                      type="button"
+                      id="btn-open-staff-audit"
+                      onClick={() => {
+                        if (!isScheduleGenerated) {
+                          setCarryoverSuccess("⚠️ Lütfen önce 'VARDİYA HESAPLA' butonuna basınız. Personel Denetleme Ajanı, vardiya yazıldıktan sonra personelin nöbetlerini ve bakiye sağlamasını denetler.");
+                          setTimeout(() => setCarryoverSuccess(null), 4500);
+                          return;
+                        }
+                        setIsStaffAuditModalOpen(true);
+                      }}
+                      className={`w-full p-3 rounded-2xl text-left border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 active:scale-98 flex items-center justify-between gap-3 group ${
+                        !isScheduleGenerated
+                          ? isDarkMode
+                            ? 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 opacity-90'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 opacity-90'
+                          : isDarkMode
+                            ? 'bg-gradient-to-r from-indigo-950/70 to-purple-950/70 text-indigo-300 border-indigo-800/60 hover:border-indigo-500 hover:bg-indigo-900/60 ring-1 ring-indigo-500/20'
+                            : 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-950 border-indigo-200 hover:border-indigo-300 hover:bg-indigo-100/60 ring-1 ring-indigo-400/20'
+                      }`}
+                      title={
+                        isScheduleGenerated
+                          ? "Personel bazlı 6 aylık bakiye yolculuğu, hücre hücre nöbet sayımı ve canlı sağlama robotu"
+                          : "Vardiya hesaplandıktan sonra aktifleşir"
+                      }
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                          !isScheduleGenerated
+                            ? 'bg-slate-800/40 text-slate-500 border border-slate-700/50'
+                            : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-500'
+                        }`}>
+                          <UserCheck className={`w-4 h-4 ${isScheduleGenerated ? 'animate-pulse' : ''}`} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-black truncate">Personel Denetleme</div>
+                          <div className="text-[10px] opacity-75 font-medium truncate">
+                            {isScheduleGenerated ? 'Canlı Sağlama & Sayım' : 'Hesaplama Sonrası Çalışır'}
+                          </div>
+                        </div>
+                      </div>
+                      {!isScheduleGenerated ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
+                          Önce Hesaplayın
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-500 text-white shrink-0">
+                          Robot
+                        </span>
+                      )}
+                    </button>
+
+                    {/* 🏖️ İZİN / RAPOR YÖNETİMİ BUTONU */}
+                    <button
+                      type="button"
+                      id="btn-open-leave-modal"
+                      onClick={() => {
+                        setIsLeaveModalOpen(true);
+                      }}
+                      className={`w-full p-3 rounded-2xl text-left border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 active:scale-98 flex items-center justify-between gap-3 group ${
+                        isDarkMode
+                          ? 'bg-gradient-to-r from-amber-950/70 to-yellow-950/70 text-amber-300 border-amber-800/60 hover:border-amber-500 hover:bg-amber-900/60'
+                          : 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-900 border-amber-200 hover:border-amber-300 hover:bg-amber-100/60'
+                      }`}
+                      title="Personel İzin/Rapor günlerini belirleyin (Vardiyada X yazılır, hedeften düşülür)"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+                          <Palmtree className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-black truncate">İzin / Rapor Yönetimi</div>
+                          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate">Mazeret & İzin Girişi</div>
+                        </div>
+                      </div>
+                      {currentMonthLeaves.length > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-extrabold shrink-0">
+                          {currentMonthLeaves.length} İzin
+                        </span>
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-amber-400 opacity-60 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                      )}
+                    </button>
+
+                    {/* Excel & Yıllık Plan İndir (Hesaplandıysa) */}
+                    {isScheduleGenerated && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          type="button"
+                          id="btn-export-month-csv"
+                          onClick={handleExportCSV}
+                          className={`p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs hover:-translate-y-0.5 flex items-center justify-center gap-1.5 ${
+                            isDarkMode
+                              ? 'bg-slate-800/90 border-slate-700 hover:bg-slate-700 text-slate-200'
+                              : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                          }`}
+                          title="Seçili ayın vardiya tablosunu Excel (CSV) olarak indirir"
+                        >
+                          <Download className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Excel (CSV)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => generateYearlyScheduleCsv(selectedYear, selectedMonth, activeDepartment, undefined)}
+                          className={`p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs hover:-translate-y-0.5 flex items-center justify-center gap-1.5 ${
+                            isDarkMode
+                              ? 'bg-amber-950/40 text-amber-300 border-amber-900/50 hover:bg-amber-900/60'
+                              : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                          }`}
+                          title="Seçili yıl için 12 aylık tüm planı hesaplar ve Excel (CSV) olarak indirir."
+                        >
+                          <Download className="w-3.5 h-3.5 text-amber-500" />
+                          <span>1 Yıllık Plan</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* NOC Pilot veya Özel Bilgi Etiketi */}
                   {activeDepartment.id === 'dep-noc' && (
-                    <span
-                      id="badge-noc-pilot-cycle"
-                      className={`px-3 py-1 rounded-full border text-[11px] font-bold ${
+                    <div
+                      className={`p-2.5 rounded-2xl border text-[11px] font-bold text-center ${
                         isDarkMode
                           ? 'bg-cyan-950/40 border-cyan-800/50 text-cyan-300'
                           : 'bg-cyan-50 border-cyan-200 text-cyan-800'
                       }`}
-                      title="NOC Pilot Birimi: Her personelin nöbet eşdeğeri ve hedef farkı kümülatif formülle (Devir + Fark = Net) hesaplanır; borç ve alacaklar yapay olarak silinmez, sonraki aylardaki nöbetlerle doğal olarak dengelenir."
                     >
                       NOC Pilot • Kişi Bazlı Matematiksel Denkleştirme
-                    </span>
+                    </div>
                   )}
-                  <span className={`px-4 py-1.5 rounded-full border text-xs font-black shadow-2xs ${
-                    isDarkMode ? 'bg-slate-900 border-slate-800 text-indigo-400' : 'bg-slate-100 border-slate-200 text-indigo-600'
-                  }`}>
-                    {activeDepartment.name}
-                  </span>
-                  <span className="text-xs font-bold">• {daysInMonth} Günlük Dönem</span>
-                </div>
-              </div>
-            </section>
-
-            {/* OTOMATİK DENETİM UYARILARI - KOMPAKT & DARALTILABİLİR */}
-            {isScheduleGenerated && monthSummary.validationWarnings && monthSummary.validationWarnings.length > 0 && (
-              <div
-                id="system-audit-warnings-banner"
-                className={`p-3 sm:p-3.5 rounded-xl border transition-all duration-200 shadow-sm ${
-                  isDarkMode
-                    ? 'bg-slate-900/95 border-amber-500/40 shadow-amber-950/20'
-                    : 'bg-amber-50/90 border-amber-300/80 shadow-amber-500/5'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className={`p-1.5 rounded-lg shrink-0 ${
-                        isDarkMode
-                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                          : 'bg-amber-500 text-white shadow-xs'
-                      }`}
-                    >
-                      <AlertTriangle className="w-4 h-4" />
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={`text-xs sm:text-sm font-bold tracking-tight ${
-                          isDarkMode ? 'text-amber-400' : 'text-amber-950'
-                        }`}
-                      >
-                        Sistem Denetim Uyarıları
-                      </span>
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${
-                          isDarkMode
-                            ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                            : 'bg-amber-200/70 text-amber-900 border-amber-300/70'
-                        }`}
-                      >
-                        {monthSummary.validationWarnings.length} Bildirim
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setIsWarningsOpen(!isWarningsOpen)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer shrink-0 border ${
-                      isDarkMode
-                        ? 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-750'
-                        : 'bg-white text-slate-700 border-amber-200 hover:bg-amber-100/50'
-                    }`}
-                    title={isWarningsOpen ? 'Uyarı listesini daralt' : 'Uyarı listesini genişlet'}
-                  >
-                    <span>{isWarningsOpen ? 'Daralt' : 'Detayları Göster'}</span>
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isWarningsOpen ? 'rotate-180' : ''}`} />
-                  </button>
                 </div>
 
-                {isWarningsOpen && (
-                  <ul className="mt-2.5 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {monthSummary.validationWarnings.map((warning, idx) => (
-                      <li
-                        key={idx}
-                        className={`flex items-start gap-2.5 p-2 sm:p-2.5 rounded-lg border transition-all text-xs sm:text-sm font-medium leading-relaxed ${
+                {/* 2. PERSONEL LİSTESİ VE DÜZENLEME PANELİ */}
+                <PersonnelSidebar
+                  department={activeDepartment}
+                  summary={monthSummary}
+                  isDark={isDarkMode}
+                  isScheduleGenerated={isScheduleGenerated}
+                  isAdmin={isAdmin}
+                  onRequestAdminLogin={() => setIsLoginModalOpen(true)}
+                  onUpdateStaffName={handleUpdateStaffName}
+                  onFillDemoNames={handleFillDemoNames}
+                  selectedStaffId={selectedStaffId}
+                  onSelectStaff={setSelectedStaffId}
+                />
+              </aside>
+
+              {/* SAĞ SÜTUN: SEKME ÇUBUĞU, UYARILAR VE ÇİZELGE İÇERİKLERİ */}
+              <div className="flex-1 w-full min-w-0 space-y-6">
+                {isScheduleGenerated ? (
+                  <>
+                    {/* KURUMSAL GÖRÜNÜM SEKMELERİ - YÜZEN PİLL (OVAL) SEKME ÇUBUĞU */}
+                    <nav className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div
+                        className={`inline-flex items-center gap-1.5 p-1.5 rounded-full border shadow-xs backdrop-blur-md flex-wrap ${
                           isDarkMode
-                            ? 'bg-slate-800/90 border-slate-700/80 text-slate-100'
-                            : 'bg-white border-amber-200 text-slate-900 shadow-2xs'
+                            ? 'bg-slate-900/90 border-slate-800'
+                            : 'bg-white/90 border-slate-200/90 shadow-[0_2px_12px_rgba(0,0,0,0.04)]'
                         }`}
                       >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                            isDarkMode ? 'bg-amber-400' : 'bg-amber-500'
+                        {/* 2. Resmi Çizelge */}
+                        <button
+                          id="tab-btn-matrix"
+                          onClick={() => setActiveTab('matrix')}
+                          className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold rounded-full transition-all cursor-pointer ${
+                            activeTab === 'matrix'
+                              ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-indigo-600/30'
+                              : isDarkMode
+                              ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                           }`}
-                        />
-                        <span>{warning}</span>
-                      </li>
-                    ))}
-                  </ul>
+                        >
+                          <TableIcon className="w-4 h-4" />
+                          {daysInMonth} Günlük Resmi Çizelge
+                        </button>
+
+                        {/* 3. Bakiye & Hak Ediş */}
+                        <button
+                          id="tab-btn-salary"
+                          onClick={() => setActiveTab('salary')}
+                          className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold rounded-full transition-all cursor-pointer ${
+                            activeTab === 'salary'
+                              ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-indigo-600/30'
+                              : isDarkMode
+                              ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <Scale className="w-4 h-4" />
+                          Personel Bakiye & Hak Ediş
+                        </button>
+
+                        {/* 4. Aylık Takvim */}
+                        <button
+                          id="tab-btn-calendar"
+                          onClick={() => setActiveTab('calendar')}
+                          className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold rounded-full transition-all cursor-pointer ${
+                            activeTab === 'calendar'
+                              ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-indigo-600/30'
+                              : isDarkMode
+                              ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <CalendarIcon className="w-4 h-4" />
+                          Aylık Takvim
+                        </button>
+
+                        {/* 5. Günlük Liste */}
+                        <button
+                          id="tab-btn-list"
+                          onClick={() => setActiveTab('list')}
+                          className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold rounded-full transition-all cursor-pointer ${
+                            activeTab === 'list'
+                              ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-indigo-600/30'
+                              : isDarkMode
+                              ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <ListIcon className="w-4 h-4" />
+                          Günlük Liste
+                        </button>
+                      </div>
+
+                      <div className={`text-xs sm:text-sm font-black flex items-center gap-2 ${
+                        isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                      }`}>
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>
+                          {TURKISH_MONTHS[selectedMonth]} {selectedYear} • {activeDepartment.name}
+                        </span>
+                      </div>
+                    </nav>
+
+                    {/* OTOMATİK DENETİM UYARILARI - KOMPAKT & DARALTILABİLİR */}
+                    {monthSummary.validationWarnings && monthSummary.validationWarnings.length > 0 && (
+                      <div
+                        id="system-audit-warnings-banner"
+                        className={`p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 shadow-sm ${
+                          isDarkMode
+                            ? 'bg-slate-900/95 border-amber-500/40 shadow-amber-950/20'
+                            : 'bg-amber-50/90 border-amber-300/80 shadow-amber-500/5'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className={`p-1.5 rounded-lg shrink-0 ${
+                                isDarkMode
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                  : 'bg-amber-500 text-white shadow-xs'
+                              }`}
+                            >
+                              <AlertTriangle className="w-4 h-4" />
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`text-xs sm:text-sm font-bold tracking-tight ${
+                                  isDarkMode ? 'text-amber-400' : 'text-amber-950'
+                                }`}
+                              >
+                                Sistem Denetim Uyarıları
+                              </span>
+                              <span
+                                className={`text-[11px] px-2 py-0.5 rounded-full font-bold border ${
+                                  isDarkMode
+                                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                                    : 'bg-amber-200/70 text-amber-900 border-amber-300/70'
+                                }`}
+                              >
+                                {monthSummary.validationWarnings.length} Bildirim
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => setIsWarningsOpen(!isWarningsOpen)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer shrink-0 border ${
+                              isDarkMode
+                                ? 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-750'
+                                : 'bg-white text-slate-700 border-amber-200 hover:bg-amber-100/50'
+                            }`}
+                            title={isWarningsOpen ? 'Uyarı listesini daralt' : 'Uyarı listesini genişlet'}
+                          >
+                            <span>{isWarningsOpen ? 'Daralt' : 'Detayları Göster'}</span>
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isWarningsOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                        </div>
+
+                        {isWarningsOpen && (
+                          <ul className="mt-2.5 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                            {monthSummary.validationWarnings.map((warning, idx) => (
+                              <li
+                                key={idx}
+                                className={`flex items-start gap-2.5 p-2 sm:p-2.5 rounded-lg border transition-all text-xs sm:text-sm font-medium leading-relaxed ${
+                                  isDarkMode
+                                    ? 'bg-slate-800/90 border-slate-700/80 text-slate-100'
+                                    : 'bg-white border-amber-200 text-slate-900 shadow-2xs'
+                                }`}
+                              >
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                                    isDarkMode ? 'bg-amber-400' : 'bg-amber-500'
+                                  }`}
+                                />
+                                <span>{warning}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+
+                    {/* SEÇİLEN GÖRÜNÜME GÖRE DİNAMİK ALAN */}
+                    {activeTab === 'matrix' && (
+                      <MatrixTableView
+                        shifts={monthSummary.shifts}
+                        staffList={activeStaffList}
+                        summary={monthSummary}
+                        isDark={isDarkMode}
+                      />
+                    )}
+
+                    {activeTab === 'salary' && (
+                      <StaffStatsCard
+                        summary={monthSummary}
+                        staffList={activeStaffList}
+                        departmentName={activeDepartment.name}
+                        onCarryOverToNextMonth={handleCarryOverToNextMonth}
+                        onUpdateManualCarryover={handleUpdateManualCarryover}
+                        isDark={isDarkMode}
+                        isAdmin={isAdmin}
+                        onRequestAdminLogin={() => setIsLoginModalOpen(true)}
+                      />
+                    )}
+
+                    {activeTab === 'calendar' && (
+                      <CalendarView
+                        shifts={monthSummary.shifts}
+                        year={selectedYear}
+                        month={selectedMonth}
+                        isDark={isDarkMode}
+                        onDayClick={(shift) => setOverrideModalShift(shift)}
+                      />
+                    )}
+
+                    {activeTab === 'list' && (
+                      <DailyListView
+                        shifts={monthSummary.shifts}
+                        isDark={isDarkMode}
+                        onDayClick={(shift) => setOverrideModalShift(shift)}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className={`flex flex-col items-center justify-center py-20 px-8 text-center rounded-3xl border border-dashed transition-all shadow-sm ${
+                    isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white/90 border-slate-300'
+                  }`}>
+                    <div className="w-20 h-20 rounded-3xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center mb-6 text-indigo-600 dark:text-indigo-400 shadow-sm">
+                      <CalendarIcon className="w-10 h-10" />
+                    </div>
+                    <h3 className={`text-2xl font-black mb-2.5 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                      Vardiya Çizelgesi Henüz Hesaplanmadı
+                    </h3>
+                    <p className={`text-sm max-w-lg mb-8 leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>{TURKISH_MONTHS[selectedMonth]} {selectedYear}</strong> dönemi ve <strong className={isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}>{activeDepartment.name}</strong> birimi için nöbet çizelgesini hesaplamak üzere sol paneldeki veya aşağıdaki <strong className="text-indigo-600 dark:text-indigo-400">"Vardiya Hesapla"</strong> butonuna tıklayınız.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGenerateSchedule}
+                      className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-black text-white bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 shadow-xl shadow-indigo-600/25 active:scale-95 transition-all cursor-pointer ring-2 ring-indigo-500/20 group"
+                    >
+                      <Play className="w-5 h-5 fill-current transition-transform group-hover:scale-110" />
+                      <span>Vardiyayı Hesapla ve Aç</span>
+                    </button>
+                  </div>
                 )}
               </div>
-            )}
-
-            {isScheduleGenerated ? (
-              <>
-                {/* KURUMSAL GÖRÜNÜM SEKMELERİ - YÜZEN PİLL (OVAL) SEKME ÇUBUĞU */}
-                <nav className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-              <div
-                className={`inline-flex items-center gap-1.5 p-1.5 rounded-full border shadow-xs backdrop-blur-md flex-wrap ${
-                  isDarkMode
-                    ? 'bg-slate-900/90 border-slate-800'
-                    : 'bg-white/90 border-slate-200/90 shadow-[0_2px_12px_rgba(0,0,0,0.04)]'
-                }`}
-              >
-                {/* 2. Resmi Çizelge */}
-                <button
-                  id="tab-btn-matrix"
-                  onClick={() => setActiveTab('matrix')}
-                  className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold rounded-full transition-all cursor-pointer ${
-                    activeTab === 'matrix'
-                      ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-indigo-600/30'
-                      : isDarkMode
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <TableIcon className="w-4 h-4" />
-                  {daysInMonth} Günlük Resmi Çizelge
-                </button>
-
-                {/* 3. Bakiye & Hak Ediş */}
-                <button
-                  id="tab-btn-salary"
-                  onClick={() => setActiveTab('salary')}
-                  className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold rounded-full transition-all cursor-pointer ${
-                    activeTab === 'salary'
-                      ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-indigo-600/30'
-                      : isDarkMode
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Scale className="w-4 h-4" />
-                  Personel Bakiye & Hak Ediş
-                </button>
-
-                {/* 4. Aylık Takvim */}
-                <button
-                  id="tab-btn-calendar"
-                  onClick={() => setActiveTab('calendar')}
-                  className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold rounded-full transition-all cursor-pointer ${
-                    activeTab === 'calendar'
-                      ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-indigo-600/30'
-                      : isDarkMode
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <CalendarIcon className="w-4 h-4" />
-                  Aylık Takvim
-                </button>
-
-                {/* 5. Günlük Liste */}
-                <button
-                  id="tab-btn-list"
-                  onClick={() => setActiveTab('list')}
-                  className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold rounded-full transition-all cursor-pointer ${
-                    activeTab === 'list'
-                      ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-indigo-600/30'
-                      : isDarkMode
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <ListIcon className="w-4 h-4" />
-                  Günlük Liste
-                </button>
-              </div>
-
-              <div className={`text-xs sm:text-sm font-black flex items-center gap-2 ${
-                isDarkMode ? 'text-slate-300' : 'text-slate-700'
-              }`}>
-                <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>
-                  {TURKISH_MONTHS[selectedMonth]} {selectedYear} • {activeDepartment.name}
-                </span>
-              </div>
-            </nav>
-
-            {/* SEÇİLEN GÖRÜNÜME GÖRE DİNAMİK ALAN */}
-            {activeTab === 'matrix' && (
-              <div className="flex flex-col lg:flex-row gap-5 items-start">
-                <div className="w-full lg:w-80 xl:w-84 shrink-0">
-                  <PersonnelSidebar
-                    department={activeDepartment}
-                    summary={monthSummary}
-                    isDark={isDarkMode}
-                    isScheduleGenerated={isScheduleGenerated}
-                    isAdmin={isAdmin}
-                    onRequestAdminLogin={() => setIsLoginModalOpen(true)}
-                    onUpdateStaffName={handleUpdateStaffName}
-                    onFillDemoNames={handleFillDemoNames}
-                    selectedStaffId={selectedStaffId}
-                    onSelectStaff={setSelectedStaffId}
-                  />
-                </div>
-                <div className="flex-1 w-full min-w-0">
-                  <MatrixTableView
-                    shifts={monthSummary.shifts}
-                    staffList={activeStaffList}
-                    summary={monthSummary}
-                    isDark={isDarkMode}
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'salary' && (
-              <div className="flex flex-col lg:flex-row gap-5 items-start">
-                <div className="w-full lg:w-80 xl:w-84 shrink-0">
-                  <PersonnelSidebar
-                    department={activeDepartment}
-                    summary={monthSummary}
-                    isDark={isDarkMode}
-                    isScheduleGenerated={isScheduleGenerated}
-                    isAdmin={isAdmin}
-                    onRequestAdminLogin={() => setIsLoginModalOpen(true)}
-                    onUpdateStaffName={handleUpdateStaffName}
-                    onFillDemoNames={handleFillDemoNames}
-                    selectedStaffId={selectedStaffId}
-                    onSelectStaff={setSelectedStaffId}
-                  />
-                </div>
-                <div className="flex-1 w-full min-w-0">
-                  <StaffStatsCard
-                    summary={monthSummary}
-                    staffList={activeStaffList}
-                    departmentName={activeDepartment.name}
-                    onCarryOverToNextMonth={handleCarryOverToNextMonth}
-                    onUpdateManualCarryover={handleUpdateManualCarryover}
-                    isDark={isDarkMode}
-                    isAdmin={isAdmin}
-                    onRequestAdminLogin={() => setIsLoginModalOpen(true)}
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'calendar' && (
-              <div className="flex flex-col lg:flex-row gap-5 items-start">
-                <div className="w-full lg:w-80 xl:w-84 shrink-0">
-                  <PersonnelSidebar
-                    department={activeDepartment}
-                    summary={monthSummary}
-                    isDark={isDarkMode}
-                    isScheduleGenerated={isScheduleGenerated}
-                    isAdmin={isAdmin}
-                    onRequestAdminLogin={() => setIsLoginModalOpen(true)}
-                    onUpdateStaffName={handleUpdateStaffName}
-                    onFillDemoNames={handleFillDemoNames}
-                    selectedStaffId={selectedStaffId}
-                    onSelectStaff={setSelectedStaffId}
-                  />
-                </div>
-                <div className="flex-1 w-full min-w-0">
-                  <CalendarView
-                    shifts={monthSummary.shifts}
-                    year={selectedYear}
-                    month={selectedMonth}
-                    isDark={isDarkMode}
-                    onDayClick={(shift) => setOverrideModalShift(shift)}
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'list' && (
-              <div className="flex flex-col lg:flex-row gap-5 items-start">
-                <div className="w-full lg:w-80 xl:w-84 shrink-0">
-                  <PersonnelSidebar
-                    department={activeDepartment}
-                    summary={monthSummary}
-                    isDark={isDarkMode}
-                    isScheduleGenerated={isScheduleGenerated}
-                    isAdmin={isAdmin}
-                    onRequestAdminLogin={() => setIsLoginModalOpen(true)}
-                    onUpdateStaffName={handleUpdateStaffName}
-                    onFillDemoNames={handleFillDemoNames}
-                    selectedStaffId={selectedStaffId}
-                    onSelectStaff={setSelectedStaffId}
-                  />
-                </div>
-                <div className="flex-1 w-full min-w-0">
-                  <DailyListView
-                    shifts={monthSummary.shifts}
-                    isDark={isDarkMode}
-                    onDayClick={(shift) => setOverrideModalShift(shift)}
-                  />
-                </div>
-              </div>
-            )}
-              </>
-            ) : (
-              <div className={`flex flex-col items-center justify-center py-20 px-4 text-center rounded-3xl border border-dashed ${
-                isDarkMode ? 'bg-slate-900/30 border-slate-800' : 'bg-slate-50/50 border-slate-300'
-              }`}>
-                <CalendarIcon className={`w-16 h-16 mb-6 ${isDarkMode ? 'text-slate-700' : 'text-slate-300'}`} />
-                <h3 className={`text-xl sm:text-2xl font-black mb-3 ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
-                  Henüz Vardiya Hesaplanmadı
-                </h3>
-                <p className={`text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Lütfen yukarıdan ilgili ay ve yılı seçtikten sonra <strong className={isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}>"Vardiya Hesapla"</strong> butonuna tıklayarak çizelgeyi oluşturun.
-                </p>
-              </div>
-            )}
+            </div>
           </main>
         )}
       </div>
@@ -1179,6 +1445,42 @@ export default function App() {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onSuccess={handleManagerLoginSuccess}
+        isDark={isDarkMode}
+      />
+
+      {/* 🤖 Akıllı Denetçi Ajanı Rapor Modalı */}
+      <AgentAuditModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        summary={monthSummary}
+        departmentName={activeDepartment.name}
+        isDark={isDarkMode}
+      />
+
+      {/* 👤 Personel Denetleme Ajanı Modalı */}
+      <StaffAuditModal
+        isOpen={isStaffAuditModalOpen}
+        onClose={() => setIsStaffAuditModalOpen(false)}
+        summary={monthSummary}
+        department={activeDepartment}
+        departmentName={activeDepartment.name}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
+        leavesByMonth={leavesByMonth}
+        isDark={isDarkMode}
+      />
+
+      {/* 🏖️ Personel İzin Yönetimi Modalı */}
+      <LeaveManagementModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        staffList={activeStaffList}
+        leaves={currentMonthLeaves}
+        onAddLeave={handleAddLeave}
+        onDeleteLeave={handleDeleteLeave}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        totalDaysInMonth={monthSummary.totalDays}
         isDark={isDarkMode}
       />
     </div>

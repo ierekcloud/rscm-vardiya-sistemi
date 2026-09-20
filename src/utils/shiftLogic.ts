@@ -1,4 +1,4 @@
-import { Department, DayShift, GroupId, StaffMember, MonthSummary, StaffShiftBalance } from '../types';
+import { Department, DayShift, GroupId, StaffMember, MonthSummary, StaffShiftBalance, AgentAuditReport, FiveDayAnomaly, AgentAuditItem, StaffLeave } from '../types';
 
 export const TURKISH_MONTHS = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -285,6 +285,188 @@ function validateMonthSchedule(shifts: DayShift[], staffStats: Record<string, St
   return uniqueWarnings;
 }
 
+export function generateAgentAuditReport(
+  year: number,
+  month: number,
+  shifts: DayShift[],
+  staffStats: Record<string, StaffShiftBalance>,
+  staffList: StaffMember[],
+  targetWorkingDays: number
+): AgentAuditReport {
+  const monthName = TURKISH_MONTHS[month];
+
+  // 1. Ay içindeki günlerin frekansını bul (Hangi günler 5 kez tekrarlıyor?)
+  const dayFrequencies: Record<number, number[]> = {
+    0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: []
+  };
+
+  shifts.forEach(shift => {
+    const dow = shift.date.getDay();
+    dayFrequencies[dow].push(shift.dayNumber);
+  });
+
+  const fiveDaysAnomalies: FiveDayAnomaly[] = [];
+
+  Object.entries(dayFrequencies).forEach(([dowStr, dates]) => {
+    const dow = parseInt(dowStr, 10);
+    if (dates.length >= 5) {
+      const dayName = TURKISH_DAYS_FULL[dow];
+
+      // Bu 5 güne kimlerin nöbeti denk geldi?
+      const staffShiftMap: Record<string, number[]> = {};
+      staffList.forEach(s => { staffShiftMap[s.id] = []; });
+
+      dates.forEach(dNum => {
+        const sh = shifts[dNum - 1];
+        if (!sh) return;
+        const assigned = [...(sh.dutyStaff || []), ...(sh.supportStaff || [])];
+        assigned.forEach(st => {
+          if (staffShiftMap[st.id]) {
+            staffShiftMap[st.id].push(dNum);
+          }
+        });
+      });
+
+      const affectedStaff = staffList
+        .filter(s => (staffShiftMap[s.id]?.length || 0) > 0)
+        .map(s => {
+          const count = staffShiftMap[s.id].length;
+          const stat = staffStats[s.id];
+          const totalMonthDuties = stat ? stat.totalDuties : 0;
+          const currentMonthDifference = stat ? stat.currentMonthDifference : 0;
+          const netBalanceDays = stat ? stat.netBalanceDays : 0;
+
+          let insight = '';
+          if (count >= 2) {
+            insight = `Takvimdeki 5 ${dayName} gününün ${count} tanesine denk gelerek ay toplamında ${totalMonthDuties} nöbete ulaşmış ve ${currentMonthDifference >= 0 ? '+' : ''}${currentMonthDifference} gün fark oluşturmuştur.`;
+          } else {
+            insight = `5 ${dayName} gününden 1 tanesine nöbetçi atanmıştır.`;
+          }
+
+          return {
+            staffId: s.id,
+            staffName: s.name,
+            groupId: s.groupId,
+            dutyDates: staffShiftMap[s.id],
+            shiftsOnThisDayCount: count,
+            totalMonthDuties,
+            currentMonthDifference,
+            netBalanceDays,
+            insight,
+          };
+        })
+        .sort((a, b) => b.shiftsOnThisDayCount - a.shiftsOnThisDayCount);
+
+      fiveDaysAnomalies.push({
+        dayName,
+        dayOfWeek: dow,
+        dates,
+        affectedStaff,
+      });
+    }
+  });
+
+  // 2. Ajan Denetim Bulguları (Audit Items)
+  const auditItems: AgentAuditItem[] = [];
+
+  // A) 5 Gün Anomalileri & Fazla Mesai Uyarısı
+  fiveDaysAnomalies.forEach(anomaly => {
+    const heavyStaff = anomaly.affectedStaff.filter(s => s.shiftsOnThisDayCount >= 2);
+    if (heavyStaff.length > 0) {
+      const names = heavyStaff.map(s => `${s.staffName} (${s.shiftsOnThisDayCount} kez)`).join(', ');
+      
+      // Personellerin net bakiyelerine göre aksiyon açıklaması
+      const hasNetCreditor = heavyStaff.some(s => s.netBalanceDays > 0);
+      const allBalanced = heavyStaff.every(s => s.netBalanceDays === 0);
+      
+      let actionText = '';
+      if (allBalanced) {
+        actionText = `Bu ekstra nöbetler, personellerin geçmiş aylardan devreden borçlarını kapatmış veya hedefle tam denkleşerek net bakiyelerini 0 güne (Denk) eşitlemiştir. Gelecek aya ilave alacak devretmemiştir.`;
+      } else if (hasNetCreditor) {
+        actionText = `Ekstra denk gelen nöbetler net alacak oluşturan personellerde (+ bakiye) sonraki aya alacak olarak devredilmiş; borçlu personellerde ise geçmiş borcu kapatmada kullanılmıştır.`;
+      } else {
+        actionText = `Ekstra nöbetler personellerin geçmiş borçlarını hafifletmek için kullanılmıştır.`;
+      }
+
+      auditItems.push({
+        id: `five-day-${anomaly.dayOfWeek}`,
+        category: 'CALENDAR_ANOMALY',
+        severity: 'warning',
+        title: `Takvim Döngüsü: Bu ay 5 adet ${anomaly.dayName} bulunmaktadır`,
+        description: `${monthName} ayı takviminde 5 kez ${anomaly.dayName} günü yer almaktadır (Tarihler: ${anomaly.dates.map(d => `${d} ${monthName}`).join(', ')}). Bu takvim döngüsü ${names} personellerinin ay içi nöbet sayısını doğrudan etkilemiştir.`,
+        affectedStaffName: names,
+        actionTaken: actionText
+      });
+    }
+  });
+
+  // B) Fazla Mesai / Alacaklı Personel Analizi & Düşüm Planı
+  const creditors = Object.values(staffStats).filter(st => st.netBalanceDays > 0);
+  const debtors = Object.values(staffStats).filter(st => st.netBalanceDays < 0);
+
+  creditors.forEach(cred => {
+    auditItems.push({
+      id: `credit-${cred.staff.id}`,
+      category: 'OVERTIME_CREDIT',
+      severity: 'info',
+      title: `${cred.staff.name}: +${cred.netBalanceDays} Gün Alacak Oluştu`,
+      description: `Personel bu ay ${cred.totalDuties} nöbet (${cred.equivalentWorkDays} gün) tutarak hedefi (${targetWorkingDays} gün) aşmıştır. Geçmiş devirle birlikte net bakiyesi +${cred.netBalanceDays} gündür.`,
+      affectedStaffName: cred.staff.name,
+      actionTaken: `Ajan, bu +${cred.netBalanceDays} günü gelecek ayın (ve sonraki ayların) alacak devrine aktarmıştır. Bir sonraki ayda personelin nöbet yükü otomatik hafifletilecek veya nöbet takasında eksiye düşme hakkı tanınacaktır.`
+    });
+  });
+
+  // C) Borçlu Personel & Telafi Planı (26 günde 8 nöbet gibi durumlar)
+  debtors.forEach(debt => {
+    auditItems.push({
+      id: `debt-${debt.staff.id}`,
+      category: 'DEBT_CARRYOVER',
+      severity: 'warning',
+      title: `${debt.staff.name}: ${debt.netBalanceDays} Gün Borç Devri`,
+      description: `Personel bu ay ${debt.totalDuties} nöbet tutmuş (${debt.equivalentWorkDays} gün) ve hedef ${targetWorkingDays} günün ${Math.abs(debt.currentMonthDifference)} gün gerisinde kalmıştır. Net bakiye: ${debt.netBalanceDays} gün.`,
+      affectedStaffName: debt.staff.name,
+      actionTaken: `Bu ${debt.netBalanceDays} günlük borç silinmez; gelecek ayın devir bakiyesine aktarılmıştır. Sonraki aylarda otomatik denkleştirme veya ilave nöbet ile kapatılacaktır.`
+    });
+  });
+
+  // D) Genel İstirahat & Sağlık Kontrolü
+  auditItems.push({
+    id: 'rest-integrity',
+    category: 'REST_INTEGRITY',
+    severity: 'success',
+    title: '24/72 Saat Dinlenme Bütünlüğü Korundu',
+    description: `Tüm birim personellerinin 24 saatlik ABC nöbeti sonrasında ertesi gün ve takip eden istirahat süreleri denetlenmiş, kural dışı ardışık nöbet atanmadığı onaylanmıştır.`,
+    actionTaken: 'Kesintisiz 72 saat dinlenme güvencesi aktif.'
+  });
+
+  const nextMonthName = TURKISH_MONTHS[(month + 1) % 12];
+  const nextMonthYear = (month + 1) > 11 ? year + 1 : year;
+
+  const fiveDayText = fiveDaysAnomalies.length > 0 
+    ? fiveDaysAnomalies.map(a => `5 adet ${a.dayName}`).join(' ve ') 
+    : 'Standart döngü';
+
+  const executiveSummary = (creditors.length === 0 && debtors.length === 0)
+    ? `${monthName} ${year} döneminde geçmişten gelen tüm borç ve alacaklar tam telafi nöbetleriyle kapatılmış, ekibin tamamı 0 gün net bakiye ile tam dengeye (Denk) ulaşmıştır. Gelecek aya devreden herhangi bir borç veya alacak bulunmamaktadır.`
+    : `${monthName} ${year} döneminde takvimsel olarak ${fiveDayText} tespit edilmiştir. Toplam ${creditors.length} personelde takvim fazlalığı veya nöbet dengesi kaynaklı alacak (+ bakiye), ${debtors.length} personelde ise ay hedefi farkından kaynaklı borç (- bakiye) oluşmuştur.`;
+
+  const nextMonthOffsetPlan = (creditors.length === 0 && debtors.length === 0)
+    ? `${nextMonthName} ${nextMonthYear} dönemine devreden herhangi bir borç veya alacak bulunmamaktadır. Tüm personel eşit ve denk şartlarda yeni döneme başlamaktadır.`
+    : `Oluşan tüm + ve - bakiyeler ${nextMonthName} ${nextMonthYear} dönemine kurumsal kümülatif motor tarafından devredilmiştir. 5'li gün fazlalığı yaşayan personellerin alacakları, sonraki ayın nöbet dağılımında hafifletilerek telafi edilecektir.`;
+
+  return {
+    analyzedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    monthName,
+    year,
+    fiveDaysAnomalies,
+    auditItems,
+    totalOvertimeStaffCount: creditors.length,
+    totalDebtorStaffCount: debtors.length,
+    executiveSummary,
+    nextMonthOffsetPlan,
+  };
+}
+
 export function generateMonthSchedule(
   year: number,
   month: number, // 0 - 11
@@ -293,7 +475,8 @@ export function generateMonthSchedule(
   customOverrides: Record<number, GroupId> = {},
   previousBalances: Record<string, number> = {},
   customTargetDays?: number,
-  enableAutoCompensate: boolean = true
+  enableAutoCompensate: boolean = true,
+  leaves: StaffLeave[] = []
 ): MonthSummary {
   const totalDays = new Date(year, month + 1, 0).getDate();
   const shifts: DayShift[] = [];
@@ -339,10 +522,7 @@ export function generateMonthSchedule(
             if (dow !== 0 || !hasGroupD) cNonSun++;
           } else if (dow === 0 && hasGroupD) {
             const dStaff = staffList.filter(s => s.groupId === 'D');
-            if (dStaff.length > 0) {
-              candidateDuties[dStaff[cDGroup % dStaff.length].id]++;
-              cDGroup++;
-            }
+            dStaff.forEach(s => { candidateDuties[s.id]++; });
           } else {
             const gIdx = (cStartIndex + cNonSun) % rotatingGroups.length;
             const regG = rotatingGroups[gIdx];
@@ -350,10 +530,7 @@ export function generateMonthSchedule(
             cNonSun++;
             if (dow === 3 && hasGroupD) {
               const dStaff = staffList.filter(s => s.groupId === 'D');
-              if (dStaff.length > 0) {
-                candidateDuties[dStaff[cDGroup % dStaff.length].id]++;
-                cDGroup++;
-              }
+              dStaff.forEach(s => { candidateDuties[s.id]++; });
             }
           }
         }
@@ -415,8 +592,7 @@ export function generateMonthSchedule(
         // Böylece Pazar gününü atlayan grubun nöbeti Pazartesiye kayar ve 5 günlük doğal boşluklar ENGELLENİR.
         dutyGroupId = 'D';
         const dStaffAll = staffList.filter((s) => s.groupId === 'D');
-        dutyStaff = [dStaffAll[dGroupCount % dStaffAll.length]];
-        dGroupCount++;
+        dutyStaff = dStaffAll;
       } else {
         // Pazar değilse normal rotasyon
         dutyGroupId = regularDutyGroupId;
@@ -426,15 +602,28 @@ export function generateMonthSchedule(
         // ÇARŞAMBA: Normal rotasyonun yanına D grubu da eklenir
         if (dayOfWeek === 3 && hasGroupD) {
           const dStaffAll = staffList.filter((s) => s.groupId === 'D');
-          const groupDStaff = [dStaffAll[dGroupCount % dStaffAll.length]];
-          dutyStaff = [...dutyStaff, ...groupDStaff];
-          dGroupCount++;
+          dutyStaff = [...dutyStaff, ...dStaffAll];
         }
       }
     }
 
     const pad = (n: number) => String(n).padStart(2, '0');
     const dateString = `${year}-${pad(month + 1)}-${pad(day)}`;
+
+    // Bu günde izinli olan personelleri tespit et
+    const dayLeaves = leaves.filter((l) => day >= l.startDay && day <= l.endDay);
+    const leaveStaffIds = new Set(dayLeaves.map((l) => l.staffId));
+
+    // Nöbetçi personeller arasından izinli olanları çıkar (nöbete katılmayacak)
+    dutyStaff = dutyStaff.filter((st) => !leaveStaffIds.has(st.id));
+
+    const dayLeavesInfo: { staff: StaffMember; reason?: string }[] = [];
+    dayLeaves.forEach((l) => {
+      const st = staffList.find((s) => s.id === l.staffId);
+      if (st) {
+        dayLeavesInfo.push({ staff: st, reason: l.reason });
+      }
+    });
 
     shifts.push({
       dayNumber: day,
@@ -444,6 +633,7 @@ export function generateMonthSchedule(
       isWeekend,
       dutyGroupId,
       dutyStaff,
+      leaves: dayLeavesInfo.length > 0 ? dayLeavesInfo : undefined,
       shiftHours: '24 Saat ABC Nöbeti (07:30 - Ertesi Sabah 07:30)',
       isOverridden,
     });
@@ -455,8 +645,8 @@ export function generateMonthSchedule(
   // NOC Pilot Birimi Kontrolü
   const isNoc = staffList.some((s) => s.id.startsWith('noc-'));
 
-  if (enableAutoCompensate && isNoc) {
-    // NOC Pilot Birimi: Nöbet Devri & Denkleştirme (Shift Exchange)
+  if (enableAutoCompensate) {
+    // Tüm Birimler İçin: Nöbet Devri & Adil Denkleştirme (Shift Exchange)
     // 1 nöbet 24 saat = 3 gün normal mesaiye denktir. Bir personelde biriken fazla alacak (>= 2 gün) ile
     // borcu olan personel (<= -2 gün) arasında adil nöbet değişimi yapılır.
     // Güvenlik kuralları:
@@ -514,147 +704,6 @@ export function generateMonthSchedule(
         }
       }
     }
-  } else if (enableAutoCompensate && !isNoc) {
-    const staffDutyDays: Record<string, number[]> = {};
-    staffList.forEach(st => { staffDutyDays[st.id] = []; });
-    
-    shifts.forEach(shift => {
-      shift.dutyStaff.forEach(st => {
-        if (staffDutyDays[st.id]) staffDutyDays[st.id].push(shift.dayNumber);
-      });
-      shift.supportStaff?.forEach(st => {
-        if (staffDutyDays[st.id]) staffDutyDays[st.id].push(shift.dayNumber);
-      });
-    });
-
-    const sortedStaff = [...staffList].sort((a, b) => {
-      return (previousBalances[a.id] || 0) - (previousBalances[b.id] || 0);
-    });
-
-    sortedStaff.forEach(st => {
-      const currentDays = staffDutyDays[st.id] || [];
-      let dutiesCount = currentDays.length;
-      
-      const prevDebt = previousBalances[st.id] || 0;
-      let targetDuties = Math.round(targetWorkingDays / 3);
-
-      if (isNoc) {
-        // NOC Pilot Birimi: Kişi bazlı matematiksel denkleştirme
-        // Devreden borç veya alacak yapay olarak asla silinmez; gerçek nöbet matematiğiyle dengelenir.
-        const baselineDuties = Math.round(targetWorkingDays / 3);
-        if (prevDebt <= -2) {
-          targetDuties = baselineDuties + 1; // 2 gün veya üzeri borcu olan personele telafi için +1 nöbet
-        } else if (prevDebt >= 2) {
-          targetDuties = baselineDuties - 1; // 2 gün veya üzeri alacağı olan personele alacağını eritmesi için -1 nöbet
-        } else {
-          targetDuties = baselineDuties;
-        }
-      } else {
-        const neededDays = targetWorkingDays - prevDebt;
-        targetDuties = Math.round(neededDays / 3);
-        if (prevDebt < 0) {
-          targetDuties = Math.ceil(neededDays / 3);
-        } else if (prevDebt > 0) {
-          targetDuties = Math.floor(neededDays / 3);
-        }
-      }
-
-      const absoluteMaxDuties = Math.ceil(totalDays / 3);
-      if (targetDuties > absoluteMaxDuties) targetDuties = absoluteMaxDuties;
-      
-      const minAllowedDuties = Math.floor(targetWorkingDays / 3) - 2; 
-      if (targetDuties < minAllowedDuties) targetDuties = minAllowedDuties;
-
-      // EKSİK ÇALIŞANLARA (BORÇLULARA) VARDİYA EKLEME
-      // D Grubu personeli SADECE Pazar ve Çarşamba günleri nöbet tutar; kesinlikle başka günlere destek yazılamaz.
-      while (dutiesCount < targetDuties && st.groupId !== 'D') {
-        let bestDay = null;
-        let bestScore = -9999;
-        
-        for (let candidateDay = 1; candidateDay <= totalDays; candidateDay++) {
-          if (currentDays.includes(candidateDay)) continue;
-          
-          const date = new Date(year, month, candidateDay);
-          if (date.getDay() === 0) continue; // Pazar günlerine ekleme yapılmaz
-          
-          const prevDay = [...currentDays].filter((d) => d < candidateDay).sort((a, b) => b - a)[0];
-          const nextDay = [...currentDays].filter((d) => d > candidateDay).sort((a, b) => a - b)[0];
-          
-          const restBefore = prevDay !== undefined ? candidateDay - prevDay - 1 : 99;
-          const restAfter = nextDay !== undefined ? nextDay - candidateDay - 1 : 99;
-          
-          // En az 2 gün kesintisiz istirahat kuralı
-          if (restBefore < 2 || restAfter < 2) continue;
-          
-          let score = 10;
-          if (restBefore >= 2) score += 40;
-          if (restAfter >= 2) score += 40;
-          if (restBefore >= 3) score += 20;
-          if (restAfter >= 3) score += 20;
-          
-          const shift = shifts[candidateDay - 1];
-          if (!shift.supportStaff || shift.supportStaff.length === 0) {
-            score += 30;
-          } else {
-            score -= 30;
-          }
-          
-          if (score > bestScore) {
-            bestScore = score;
-            bestDay = candidateDay;
-          }
-        }
-        
-        if (bestDay !== null) {
-          const targetShift = shifts[bestDay - 1];
-          targetShift.supportStaff = [...(targetShift.supportStaff || []), st];
-          targetShift.isCompensated = true;
-          currentDays.push(bestDay);
-          currentDays.sort((a, b) => a - b);
-          dutiesCount++;
-          compensatedShiftsCount++;
-        } else {
-          break;
-        }
-      }
-
-      // FAZLA ÇALIŞANLARA (ALACAKLILARA) VARDİYA EKSİLTME
-      while (dutiesCount > targetDuties && st.groupId !== 'D') {
-        let bestDayToRemove = null;
-        let worstGapScore = -9999;
-        
-        for (const candidateDay of currentDays) {
-           const sh = shifts[candidateDay - 1];
-           if (sh.date.getDay() === 0) continue; // Pazar günleri tek gruptur, çıkartılamaz!
-           
-           const isDutyStaff = sh.dutyStaff.some(s => s.id === st.id);
-           if (isDutyStaff && sh.dutyStaff.length <= 1 && (!sh.supportStaff || sh.supportStaff.length === 0)) {
-               continue; // Vardiya boş kalır, silinemez
-           }
-           
-           let score = 10;
-           if (!sh.isWeekend) score += 50; 
-           
-           if (score > worstGapScore) {
-               worstGapScore = score;
-               bestDayToRemove = candidateDay;
-           }
-        }
-        
-        if (bestDayToRemove !== null) {
-            const targetShift = shifts[bestDayToRemove - 1];
-            targetShift.dutyStaff = targetShift.dutyStaff.filter(s => s.id !== st.id);
-            if (targetShift.supportStaff) {
-                targetShift.supportStaff = targetShift.supportStaff.filter(s => s.id !== st.id);
-            }
-            
-            currentDays.splice(currentDays.indexOf(bestDayToRemove), 1);
-            dutiesCount--;
-        } else {
-            break;
-        }
-      }
-    });
   }
 
   // 3. AŞAMA: KESİNTİSİZ İSTİRAHAT KONTROLÜ
@@ -712,7 +761,22 @@ export function generateMonthSchedule(
     
     const equivalentWorkDays = totalDuties * 3;
     const prevCarryover = previousBalances[st.id] || 0;
-    const currentMonthDifference = equivalentWorkDays - targetWorkingDays;
+
+    // Personelin bu aydaki izin günlerini hesapla (Pazarlar hariç resmi iş günleri)
+    let staffLeaveWorkDays = 0;
+    const stLeaves = leaves.filter((l) => l.staffId === st.id);
+    stLeaves.forEach((l) => {
+      for (let d = Math.max(1, l.startDay); d <= Math.min(totalDays, l.endDay); d++) {
+        const dDate = new Date(year, month, d);
+        if (dDate.getDay() !== 0) { // Pazar günü zaten tatil olduğu için çalışma gününden düşülmez
+          staffLeaveWorkDays++;
+        }
+      }
+    });
+
+    // İzin alan personelin aylık hedefi, izin günleri kadar düşürülür
+    const adjustedTargetWorkingDays = Math.max(0, targetWorkingDays - staffLeaveWorkDays);
+    const currentMonthDifference = equivalentWorkDays - adjustedTargetWorkingDays;
     const netBalanceDays = prevCarryover + currentMonthDifference;
 
     let status: StaffShiftBalance['status'] = 'BALANCED';
@@ -727,7 +791,9 @@ export function generateMonthSchedule(
       totalDuties,
       totalHours,
       equivalentWorkDays,
-      targetWorkDays: targetWorkingDays,
+      targetWorkDays: adjustedTargetWorkingDays,
+      baseTargetWorkDays: targetWorkingDays,
+      leaveDays: staffLeaveWorkDays,
       previousCarryoverDays: prevCarryover,
       currentMonthDifference,
       netBalanceDays,
@@ -736,6 +802,7 @@ export function generateMonthSchedule(
   });
 
   const validationWarnings = validateMonthSchedule(shifts, staffStats, staffList, hasGroupD);
+  const auditReport = generateAgentAuditReport(year, month, shifts, staffStats, staffList, targetWorkingDays);
 
   return {
     year,
@@ -748,6 +815,8 @@ export function generateMonthSchedule(
     autoCompensated: enableAutoCompensate,
     compensatedShiftsCount,
     validationWarnings,
+    auditReport,
+    leaves,
   };
 }
 

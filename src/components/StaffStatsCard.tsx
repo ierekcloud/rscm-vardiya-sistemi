@@ -8,6 +8,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Shield,
+  Bot,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 
 interface StaffStatsCardProps {
@@ -109,6 +112,34 @@ export const StaffStatsCard: React.FC<StaffStatsCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 🤖 AKILLI AJAN BİLDİRİM VE DENKLEŞTİRME BİLGİ KUTUSU */}
+      {summary.auditReport && summary.auditReport.fiveDaysAnomalies.length > 0 && (
+        <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+          isDark 
+            ? 'bg-gradient-to-r from-cyan-950/40 via-slate-900 to-blue-950/40 border-cyan-700/40 text-cyan-200' 
+            : 'bg-gradient-to-r from-cyan-50 via-white to-blue-50 border-cyan-200 text-cyan-950 shadow-xs'
+        }`}>
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-500 shrink-0 mt-0.5">
+              <Bot className="w-5 h-5 animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-700 dark:text-cyan-300">
+                  Otonom Takvim & Bakiye Ajanı
+                </span>
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                  {summary.auditReport.fiveDaysAnomalies.map(a => `5 ${a.dayName}`).join(' ve ')} Tespit Edildi
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                Bu ay takvim gereği bazı günler 5 kez tekrarlamıştır. Bu günlere denk gelerek fazla mesai üreten personellerin hak edişleri tespit edilmiş ve <strong>bir sonraki ayın devir bakiyesine Alacak (+) olarak işlenmiştir</strong>. Hiçbir mesai hakkı kaybolmaz.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detaylı Personel Tablosu */}
       <div className="overflow-x-auto w-full custom-scrollbar">
@@ -237,7 +268,18 @@ export const StaffStatsCard: React.FC<StaffStatsCardProps> = ({
                   <td className={`py-3 px-2 text-center font-bold tabular-nums ${
                     isDark ? 'text-slate-400' : 'text-slate-500'
                   }`}>
-                    {stats.targetWorkDays} gün
+                    {stats.leaveDays && stats.leaveDays > 0 ? (
+                      <div className="flex flex-col items-center leading-tight">
+                        <span className={`font-black ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                          {stats.targetWorkDays} gün
+                        </span>
+                        <span className="text-[10px] text-amber-500 font-semibold" title={`${stats.leaveDays} gün izin düşüldü`}>
+                          ({stats.leaveDays}g İzin Düşüldü)
+                        </span>
+                      </div>
+                    ) : (
+                      <span>{stats.targetWorkDays} gün</span>
+                    )}
                   </td>
 
                   {/* Bu Ay Farkı */}

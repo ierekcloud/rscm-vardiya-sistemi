@@ -249,6 +249,32 @@ export const DailyListView: React.FC<DailyListViewProps> = ({
                     </span>
                   </div>
                 )}
+
+                {/* İzinli Personeller */}
+                {shift.leaves && shift.leaves.length > 0 && (
+                  <div className={`flex items-center gap-2 flex-wrap sm:justify-end px-2.5 py-1 rounded-lg border ${
+                    isDark
+                      ? 'bg-amber-950/40 border-amber-500/30'
+                      : 'bg-amber-50 border-amber-200'
+                  }`}>
+                    <span className={`text-[11px] font-bold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                      İzinli (X):
+                    </span>
+                    {shift.leaves.map((lv) => (
+                      <span
+                        key={lv.staff.id}
+                        className={`text-xs font-semibold px-2 py-0.5 rounded border ${
+                          isDark
+                            ? 'text-amber-200 bg-amber-900/60 border-amber-500/40'
+                            : 'text-amber-900 bg-amber-100 border-amber-300'
+                        }`}
+                        title={lv.reason}
+                      >
+                        {lv.staff.name} ({lv.reason || 'İzin'})
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );
