@@ -31,7 +31,7 @@ interface DepartmentPortalProps {
 const DEPT_META: Record<string, { icon: React.ReactNode; subtitle: string; tag?: string }> = {
   'dep-noc': {
     icon: <Network className="w-6 h-6 text-indigo-600" />,
-    subtitle: '24/72 Vardiya & Akıllı Dengeleme',
+    subtitle: 'NOC Vardiya & Operasyon Merkezi',
     tag: 'Pilot Birim • Canlı'
   },
   'dep-mpls': {
@@ -70,7 +70,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
   const handleCardClick = (dept: Department) => {
     const isNoc = dept.id === 'dep-noc';
     if (isNoc) {
-      onSelectDepartment(dept.id);
+      onSelectDepartment('dep-noc');
     } else {
       setLockedNotice(`🔒 ${dept.name} birimi kilitlidir. Sistem şu an sadece NOC pilot biriminde devrededir. Pilot süreç tamamlanıp kabul gördükten sonra bu birim açılacaktır.`);
       setTimeout(() => {
@@ -131,13 +131,15 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
 
         {/* Birim Kartları Izgarası */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {departments.map((dept) => {
-            const meta = DEPT_META[dept.id] || {
-              icon: <Server className="w-5 h-5 text-slate-700" />,
-              subtitle: '',
-              tag: 'Vardiyalı'
-            };
-            const isNoc = dept.id === 'dep-noc';
+          {departments
+            .filter((dept) => dept.id !== 'dep-noc-6p')
+            .map((dept) => {
+              const meta = DEPT_META[dept.id] || {
+                icon: <Server className="w-5 h-5 text-slate-700" />,
+                subtitle: '',
+                tag: 'Vardiyalı'
+              };
+              const isNoc = dept.id === 'dep-noc';
 
             return (
               <button
@@ -150,7 +152,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                     : 'bg-slate-100/60 border-slate-300/80 opacity-50 hover:opacity-70 cursor-not-allowed select-none backdrop-blur-[1px]'
                 }`}
                 style={{ backgroundColor: isNoc ? '#ffffff' : 'rgba(241, 245, 249, 0.65)' }}
-                title={isNoc ? 'NOC Pilot Birimi - Canlı ve Açık' : `${dept.name} - Pilot sonrası açılacaktır (Kilitli)`}
+                title={isNoc ? `${dept.name} - Canlı ve Açık` : `${dept.name} - Pilot sonrası açılacaktır (Kilitli)`}
               >
                 {/* Kilit Simgesi Arka Plan Efekti (NOC Dışındakiler İçin) */}
                 {!isNoc && (

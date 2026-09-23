@@ -8,11 +8,26 @@ export const TURKISH_MONTHS = [
 export const TURKISH_DAYS_SHORT = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 export const TURKISH_DAYS_FULL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
-// 5 Bölüm: NOC, MPLS, DSL, SANTRAL, TRANSMİSYON
+// 6 Kişilik Yeni NOC Toplantı Modeli Kadrosu
+// 1. Grup: Ahmet Yılmaz, Mehmet Demir (Pzt, Per, Cum Dönüşümlü)
+// 2. Grup: Mustafa Kaya, Ali Şahin (Pzt, Per, Cum Dönüşümlü)
+// 3. Grup: Hasan Çelik (Sabit Salı & Cumartesi - Tek Kişi), Hüseyin Yıldız (Sabit Çarşamba & Pazar - Tek Kişi)
+export const DEFAULT_NOC_6P_STAFF: StaffMember[] = [
+  { id: 'noc6-1', name: 'Ahmet Yılmaz', groupId: 'A', orderInGroup: 1, roleNote: 'Pzt & Per (1. Grup)' },
+  { id: 'noc6-2', name: 'Mehmet Demir', groupId: 'A', orderInGroup: 2, roleNote: 'Pzt & Per (1. Grup)' },
+  { id: 'noc6-3', name: 'Mustafa Kaya', groupId: 'B', orderInGroup: 1, roleNote: 'Salı & Cuma (2. Grup)' },
+  { id: 'noc6-4', name: 'Ali Şahin', groupId: 'B', orderInGroup: 2, roleNote: 'Salı & Cuma (2. Grup)' },
+  { id: 'noc6-5', name: 'Hasan Çelik', groupId: 'C', orderInGroup: 1, roleNote: 'Salı & Cmt (3. Grup 1. Kişi)' },
+  { id: 'noc6-6', name: 'Hüseyin Yıldız', groupId: 'C', orderInGroup: 2, roleNote: 'Çar & Paz (3. Grup 2. Kişi)' },
+];
+
+// 5 Bölüm: NOC, NOC (6 Kişilik Model), MPLS, DSL, SANTRAL, TRANSMİSYON
 export const DEFAULT_DEPARTMENTS: Department[] = [
   {
     id: 'dep-noc',
-    name: 'NOC',
+    name: 'NOC (Standart 7 Kişi)',
+    shiftModel: 'STANDARD_7P',
+    modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü',
     staff: [
       { id: 'noc-1', name: 'Ahmet Yılmaz', groupId: 'A', orderInGroup: 1 },
       { id: 'noc-2', name: 'Mehmet Demir', groupId: 'A', orderInGroup: 2 },
@@ -22,6 +37,13 @@ export const DEFAULT_DEPARTMENTS: Department[] = [
       { id: 'noc-6', name: 'Hüseyin Yıldız', groupId: 'C', orderInGroup: 2 },
       { id: 'noc-7', name: 'İbrahim Erek', groupId: 'D', orderInGroup: 1 },
     ],
+  },
+  {
+    id: 'dep-noc-6p',
+    name: 'NOC',
+    shiftModel: 'MEETING_6P',
+    modelDescription: '6 Personel • 8-9 Nöbet | Pzt/Per (1. Grup) | Sal/Cum (2. Grup) | Sal/Cmt (1. Kişi) | Çar/Paz (2. Kişi)',
+    staff: DEFAULT_NOC_6P_STAFF,
   },
   {
     id: 'dep-mpls',
@@ -97,6 +119,29 @@ export const ROTATING_GROUPS: GroupId[] = ['A', 'B', 'C', 'D'];
  * - Ay geçişlerinde dişli bozulmaz; birbirini takip eder.
  * - Referans Çapa: Eylül 2026 (Yıl 2026, Ay 8), 1 Eylül = Grup 'A'.
  */
+export function getDutyStaffForDay(
+  groupId: GroupId,
+  staffList: StaffMember[],
+  dayOfWeek: number,
+  hasGroupD: boolean
+): StaffMember[] {
+  if (groupId === 'C' && !hasGroupD) {
+    const cStaff = staffList.filter((s) => s.groupId === 'C');
+    if (cStaff.length <= 1) return cStaff;
+    if (dayOfWeek === 2 || dayOfWeek === 6) { // Salı veya Cumartesi -> 1. Kişi (Hasan Çelik - Sabit Tek Kişi)
+      const cmtStaff = cStaff.filter((s) => s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('salı') || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi'));
+      return cmtStaff.length > 0 ? [cmtStaff[0]] : [cStaff[0]];
+    }
+    if (dayOfWeek === 3 || dayOfWeek === 0) { // Çarşamba veya Pazar -> 2. Kişi (Hüseyin Yıldız - Sabit Tek Kişi)
+      const pazStaff = cStaff.filter((s) => s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('çarşamba') || s.roleNote?.toLowerCase().includes('pazar'));
+      return pazStaff.length > 0 ? [pazStaff[0]] : (cStaff.length > 1 ? [cStaff[1]] : [cStaff[0]]);
+    }
+    // Diğer günlerde (ör. Pazartesi, Perşembe, Cuma) manuel C atanırsa
+    return cStaff;
+  }
+  return staffList.filter((s) => s.groupId === groupId);
+}
+
 export function getGearStartGroup(
   targetYear: number,
   targetMonth: number,
@@ -107,37 +152,46 @@ export function getGearStartGroup(
 ): GroupId {
   const anchorDate = new Date(anchorYear, anchorMonth, 1);
   const targetDate = new Date(targetYear, targetMonth, 1);
+  const hasGroupD = availableGroups.includes('D');
   
-  // Count exact number of non-Sunday days between anchor and target
-  let nonSundayCount = 0;
+  // Count exact number of cycle days between anchor and target
+  let cycleDays = 0;
   
   if (targetDate >= anchorDate) {
     let d = new Date(anchorDate);
     while (d < targetDate) {
-      if (d.getDay() !== 0) {
-        nonSundayCount++;
+      const dow = d.getDay();
+      if (hasGroupD) {
+        if (dow !== 0) cycleDays++;
+      } else {
+        // 6 Kişilik Model: Sadece Pazartesi (1), Perşembe (4) ve Cuma (5) günleri A ve B arasında döner
+        if (dow === 1 || dow === 4 || dow === 5) cycleDays++;
       }
       d.setDate(d.getDate() + 1);
     }
   } else {
     let d = new Date(targetDate);
     while (d < anchorDate) {
-      if (d.getDay() !== 0) {
-        nonSundayCount--;
+      const dow = d.getDay();
+      if (hasGroupD) {
+        if (dow !== 0) cycleDays--;
+      } else {
+        if (dow === 1 || dow === 4 || dow === 5) cycleDays--;
       }
       d.setDate(d.getDate() + 1);
     }
   }
 
-  const anchorIdx = availableGroups.indexOf(anchorStartGroup);
+  const baseOrder = hasGroupD ? availableGroups : availableGroups.filter((g) => g === 'A' || g === 'B');
+  const anchorIdx = baseOrder.indexOf(anchorStartGroup);
   const baseIdx = anchorIdx === -1 ? 0 : anchorIdx;
-  const targetIdx = ((baseIdx + nonSundayCount) % availableGroups.length + availableGroups.length) % availableGroups.length;
+  const targetIdx = ((baseIdx + cycleDays) % baseOrder.length + baseOrder.length) % baseOrder.length;
 
-  return availableGroups[targetIdx];
+  return baseOrder[targetIdx] || 'A';
 }
 
 /**
- * Her ay personelin adaletli bir şekilde 4 grup (A, B, C, D) arasında yer değiştirmesini sağlar.
+ * Her ay personelin adaletli bir şekilde gruplar arasında yer değiştirmesini sağlar.
  * D grubu da dahil olmak üzere tüm personeller her ay adil ve sistematik olarak sırayla döner.
  */
 export function getRotatedStaff(staffList: StaffMember[], year: number, month: number): StaffMember[] {
@@ -152,8 +206,12 @@ export function getRotatedStaff(staffList: StaffMember[], year: number, month: n
     return (a.orderInGroup || 0) - (b.orderInGroup || 0);
   });
 
-  // Orijinal slot yapılarını (hangi index'te hangi grup ve sıra var) kaydet
-  const slotLayout = sortedStaff.map(s => ({ groupId: s.groupId, orderInGroup: s.orderInGroup }));
+  // Orijinal slot yapılarını (hangi index'te hangi grup, sıra ve rol notu var) kaydet
+  const slotLayout = sortedStaff.map(s => ({ 
+    groupId: s.groupId, 
+    orderInGroup: s.orderInGroup,
+    roleNote: s.roleNote 
+  }));
 
   // Projenin miladı ve referans ayı: Ekim 2026 (yıl: 2026, month: 9)
   const baseYear = 2026;
@@ -171,11 +229,12 @@ export function getRotatedStaff(staffList: StaffMember[], year: number, month: n
     ...sortedStaff.slice(0, len - shiftAmount)
   ];
 
-  // Kaydırılmış personellere ilgili slotun grup ve sıra özelliklerini ata
+  // Kaydırılmış personellere ilgili slotun grup, sıra ve rol özelliklerini ata
   return shifted.map((staff, index) => ({
     ...staff,
     groupId: slotLayout[index].groupId,
     orderInGroup: slotLayout[index].orderInGroup,
+    roleNote: slotLayout[index].roleNote,
   }));
 }
 
@@ -489,11 +548,11 @@ export function generateMonthSchedule(
   const hasGroupD = availableGroupIds.includes('D');
 
   // D Grubu her zaman Çarşamba ve Pazar çalışır. A,B,C grupları diğer günleri döndürür.
-  // Bu nedenle D grubunu normal döngüden (rotatingGroups) çıkarıyoruz.
-  const baseOrder: GroupId[] = ['A', 'B', 'C'];
+  // 6 Kişilik modelde ise hafta içi A ve B grupları döner, Cmt ve Paz sabit 3. Grup (C) tek kişi tutar.
+  const baseOrder: GroupId[] = hasGroupD ? ['A', 'B', 'C'] : ['A', 'B'];
   let rotatingGroups = baseOrder.filter((g) => availableGroupIds.includes(g));
   if (rotatingGroups.length === 0) {
-    rotatingGroups = ['A', 'B', 'C'];
+    rotatingGroups = hasGroupD ? ['A', 'B', 'C'] : ['A', 'B'];
   }
 
   // 1. Günden başlayacak grup (Akıllı Dengeleme veya Dişli çark)
@@ -507,8 +566,7 @@ export function generateMonthSchedule(
       
       for (const cand of rotatingGroups) {
         const cStartIndex = rotatingGroups.indexOf(cand);
-        let cNonSun = 0;
-        let cDGroup = 0;
+        let cWeekday = 0;
         const candidateDuties: Record<string, number> = {};
         staffList.forEach(s => { candidateDuties[s.id] = 0; });
         
@@ -518,19 +576,43 @@ export function generateMonthSchedule(
           
           if (customOverrides[d]) {
             const oG = customOverrides[d];
-            staffList.filter(s => s.groupId === oG).forEach(s => { candidateDuties[s.id]++; });
-            if (dow !== 0 || !hasGroupD) cNonSun++;
+            const dStaff = getDutyStaffForDay(oG, staffList, dow, hasGroupD);
+            dStaff.forEach(s => { candidateDuties[s.id]++; });
+            if (hasGroupD ? dow !== 0 : (dow >= 1 && dow <= 5)) cWeekday++;
+          } else if (!hasGroupD) {
+            const cStaff1 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('salı') || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi')));
+            const cStaff2 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('çarşamba') || s.roleNote?.toLowerCase().includes('pazar')));
+            const cStaffAll = staffList.filter(s => s.groupId === 'C');
+            const p1 = cStaff1 || cStaffAll[0];
+            const p2 = cStaff2 || cStaffAll[1] || cStaffAll[0];
+
+            if (dow === 1 || dow === 4) { // Pazartesi & Perşembe: 1. Grup (A)
+              const dStaff = staffList.filter(s => s.groupId === 'A');
+              dStaff.forEach(s => { candidateDuties[s.id]++; });
+            } else if (dow === 2) { // Salı: 2. Grup (B) + 1. Kişi (Hasan Çelik)
+              const dStaff = staffList.filter(s => s.groupId === 'B');
+              dStaff.forEach(s => { candidateDuties[s.id]++; });
+              if (p1) candidateDuties[p1.id]++;
+            } else if (dow === 5) { // Cuma: 2. Grup (B)
+              const dStaff = staffList.filter(s => s.groupId === 'B');
+              dStaff.forEach(s => { candidateDuties[s.id]++; });
+            } else if (dow === 6) { // Cumartesi: 1. Kişi (Hasan Çelik - Tek Kişi)
+              if (p1) candidateDuties[p1.id]++;
+            } else if (dow === 3 || dow === 0) { // Çarşamba ve Pazar: 2. Kişi (Hüseyin Yıldız - Tek Kişi)
+              if (p2) candidateDuties[p2.id]++;
+            }
           } else if (dow === 0 && hasGroupD) {
             const dStaff = staffList.filter(s => s.groupId === 'D');
             dStaff.forEach(s => { candidateDuties[s.id]++; });
           } else {
-            const gIdx = (cStartIndex + cNonSun) % rotatingGroups.length;
+            const gIdx = (cStartIndex + cWeekday) % rotatingGroups.length;
             const regG = rotatingGroups[gIdx];
-            staffList.filter(s => s.groupId === regG).forEach(s => { candidateDuties[s.id]++; });
-            cNonSun++;
+            const dStaff = getDutyStaffForDay(regG, staffList, dow, hasGroupD);
+            dStaff.forEach(s => { candidateDuties[s.id]++; });
+            cWeekday++;
             if (dow === 3 && hasGroupD) {
-              const dStaff = staffList.filter(s => s.groupId === 'D');
-              dStaff.forEach(s => { candidateDuties[s.id]++; });
+              const dStaffAll = staffList.filter(s => s.groupId === 'D');
+              dStaffAll.forEach(s => { candidateDuties[s.id]++; });
             }
           }
         }
@@ -562,42 +644,75 @@ export function generateMonthSchedule(
   if (startIndex === -1) startIndex = 0;
 
   // 1. AŞAMA: Günlük ABC Nöbet Dağılımı
-  let nonSundayCount = 0;
-  let dGroupCount = 0; // D Grubu personelleri için sırayla nöbet tutturma sayacı
+  let weekdayCount = 0;
   
   for (let day = 1; day <= totalDays; day++) {
     const date = new Date(year, month, day);
     const dayOfWeek = date.getDay(); // 0 = Pazar, 6 = Cumartesi
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-    // SADECE Pazar olmayan günlerde (D grubunun tek başına olduğu günler hariç) sayaç ilerler
-    const groupIndex = (startIndex + nonSundayCount) % rotatingGroups.length;
-    const regularDutyGroupId: GroupId = rotatingGroups[groupIndex];
-
-    let dutyGroupId: GroupId = regularDutyGroupId;
+    let dutyGroupId: GroupId = 'A';
     let dutyStaff: StaffMember[] = [];
     let isOverridden = false;
 
     // Yönetici manuel bir değişim yapmışsa
     if (customOverrides[day]) {
       dutyGroupId = customOverrides[day];
-      dutyStaff = staffList.filter((s) => s.groupId === dutyGroupId);
+      dutyStaff = getDutyStaffForDay(dutyGroupId, staffList, dayOfWeek, hasGroupD);
       isOverridden = true;
-      if (dayOfWeek !== 0 || !hasGroupD) {
-        nonSundayCount++;
+      if (hasGroupD ? dayOfWeek !== 0 : (dayOfWeek >= 1 && dayOfWeek <= 5)) {
+        weekdayCount++;
+      }
+    } else if (!hasGroupD) {
+      // === 6 KİŞİLİK MODEL (Tam 8-9 Nöbet ve Kesintisiz 48-72 Saat Dinlenme) ===
+      // 1. Grup (A): Pazartesi ve Perşembe (Ayda 8-9 nöbet)
+      // 2. Grup (B): Salı ve Cuma (Ayda 8-9 nöbet)
+      // 3. Grup 1. Kişi (Hasan Çelik): Salı ve Cumartesi (Ayda 8-9 nöbet, Cmt tek kişi)
+      // 3. Grup 2. Kişi (Hüseyin Yıldız): Çarşamba ve Pazar (Ayda 8-9 nöbet, Paz tek kişi)
+      
+      const cStaff1 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('salı') || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi')));
+      const cStaff2 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('çarşamba') || s.roleNote?.toLowerCase().includes('pazar')));
+      const cStaffAll = staffList.filter(s => s.groupId === 'C');
+      const p1 = cStaff1 || cStaffAll[0];
+      const p2 = cStaff2 || cStaffAll[1] || cStaffAll[0];
+
+      if (dayOfWeek === 1) { // PAZARTESİ: 1. Grup (A)
+        dutyGroupId = 'A';
+        dutyStaff = staffList.filter(s => s.groupId === 'A');
+      } else if (dayOfWeek === 2) { // SALI: 2. Grup (B) + 3. Grup 1. Kişi (Hasan Çelik)
+        dutyGroupId = 'B';
+        const bStaff = staffList.filter(s => s.groupId === 'B');
+        dutyStaff = p1 ? [...bStaff, p1] : bStaff;
+      } else if (dayOfWeek === 3) { // ÇARŞAMBA: 3. Grup 2. Kişi (Hüseyin Yıldız - Sabit Tek Kişi)
+        dutyGroupId = 'C';
+        dutyStaff = p2 ? [p2] : [];
+      } else if (dayOfWeek === 4) { // PERŞEMBE: 1. Grup (A)
+        dutyGroupId = 'A';
+        dutyStaff = staffList.filter(s => s.groupId === 'A');
+      } else if (dayOfWeek === 5) { // CUMA: 2. Grup (B)
+        dutyGroupId = 'B';
+        dutyStaff = staffList.filter(s => s.groupId === 'B');
+      } else if (dayOfWeek === 6) { // CUMARTESİ: 3. Grup 1. Kişi (Hasan Çelik - Sabit Tek Kişi)
+        dutyGroupId = 'C';
+        dutyStaff = p1 ? [p1] : [];
+      } else if (dayOfWeek === 0) { // PAZAR: 3. Grup 2. Kişi (Hüseyin Yıldız - Sabit Tek Kişi)
+        dutyGroupId = 'C';
+        dutyStaff = p2 ? [p2] : [];
       }
     } else {
-      if (dayOfWeek === 0 && hasGroupD) { // PAZAR
-        // Pazar günü rotasyon sayacı İLERLEMEZ (nonSundayCount artmaz).
+      // === 7 KİŞİLİK STANDART MODEL ===
+      if (dayOfWeek === 0) { // PAZAR
+        // Pazar günü rotasyon sayacı İLERLEMEZ (weekdayCount artmaz).
         // Böylece Pazar gününü atlayan grubun nöbeti Pazartesiye kayar ve 5 günlük doğal boşluklar ENGELLENİR.
         dutyGroupId = 'D';
         const dStaffAll = staffList.filter((s) => s.groupId === 'D');
         dutyStaff = dStaffAll;
       } else {
         // Pazar değilse normal rotasyon
-        dutyGroupId = regularDutyGroupId;
-        dutyStaff = staffList.filter((s) => s.groupId === dutyGroupId);
-        nonSundayCount++;
+        const groupIndex = (startIndex + weekdayCount) % rotatingGroups.length;
+        dutyGroupId = rotatingGroups[groupIndex];
+        dutyStaff = getDutyStaffForDay(dutyGroupId, staffList, dayOfWeek, hasGroupD);
+        weekdayCount++;
         
         // ÇARŞAMBA: Normal rotasyonun yanına D grubu da eklenir
         if (dayOfWeek === 3 && hasGroupD) {
@@ -687,13 +802,11 @@ export function generateMonthSchedule(
           const creditorAssigned = shift.dutyStaff.some(s => s.id === creditor.id);
           if (!creditorAssigned) continue;
 
-          // Borçlunun d-1, d ve d+1 günlerinde çalışmıyor olması gerekir (en az 24 saat kesintisiz istirahat)
+          // Borçlunun d-2, d-1, d, d+1, d+2 günlerinde nöbeti olmamalıdır (en az 48 saat kesintisiz istirahat, 1 gün boşluk YASAK!)
           const debtorDays = currentStaffDays[debtor.id] || [];
-          const debtorWorksPrev = (d > 1) && debtorDays.includes(d - 1);
-          const debtorWorksCurr = debtorDays.includes(d);
-          const debtorWorksNext = (d < totalDays) && debtorDays.includes(d + 1);
+          const debtorTooClose = debtorDays.some(dayNum => Math.abs(dayNum - d) <= 2);
 
-          if (!debtorWorksPrev && !debtorWorksCurr && !debtorWorksNext) {
+          if (!debtorTooClose) {
             // Nöbet devri gerçekleştir: Alacaklı dinlenir, borçlu nöbeti alarak borcunu kapatır
             shift.dutyStaff = shift.dutyStaff.map(s => s.id === creditor.id ? debtor : s);
             shift.isCompensated = true;

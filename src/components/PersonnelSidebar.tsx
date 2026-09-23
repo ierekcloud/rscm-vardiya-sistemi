@@ -97,7 +97,9 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
     }
   };
 
-  const groupKeys: GroupId[] = ['A', 'B', 'C', 'D'];
+  const is6PersonModel = department.id === 'dep-noc-6p';
+  const hasGroupD = department.staff.some((s) => s.groupId === 'D');
+  const groupKeys: GroupId[] = hasGroupD ? ['A', 'B', 'C', 'D'] : ['A', 'B', 'C'];
 
   return (
     <aside
@@ -278,12 +280,22 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                         isDark ? 'text-white' : 'text-slate-900'
                       }`}
                     >
-                      {cfg.name}
+                      {is6PersonModel
+                        ? (grp === 'A' ? '1. Grup (A)' : grp === 'B' ? '2. Grup (B)' : '3. Grup (C)')
+                        : cfg.name}
                     </span>
-                    {grp === 'D' && (
-                      <span className="text-[10px] text-amber-500 font-semibold block leading-tight">
-                        (Çarşamba & Pazar Sabit)
+                    {is6PersonModel ? (
+                      <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold block leading-tight">
+                        {grp === 'A' && 'Pazartesi & Perşembe'}
+                        {grp === 'B' && 'Salı & Cuma'}
+                        {grp === 'C' && 'Salı & Cmt (1. Kişi) • Çar & Paz (2. Kişi)'}
                       </span>
+                    ) : (
+                      grp === 'D' && (
+                        <span className="text-[10px] text-amber-500 font-semibold block leading-tight">
+                          (Çarşamba & Pazar Sabit)
+                        </span>
+                      )
                     )}
                   </div>
                 </div>
@@ -358,10 +370,10 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                                       : 'border-slate-300 bg-slate-100 text-slate-700'
                                   }`}
                                 >
-                                  <option value="A">Grup A</option>
-                                  <option value="B">Grup B</option>
-                                  <option value="C">Grup C</option>
-                                  <option value="D">Grup D</option>
+                                  <option value="A">{is6PersonModel ? '1. Grup (A)' : 'Grup A'}</option>
+                                  <option value="B">{is6PersonModel ? '2. Grup (B)' : 'Grup B'}</option>
+                                  <option value="C">{is6PersonModel ? '3. Grup (C)' : 'Grup C'}</option>
+                                  {!is6PersonModel && <option value="D">Grup D</option>}
                                 </select>
                               )}
 
@@ -404,8 +416,8 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                                 >
                                   {staff.name}
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-medium">
-                                  24s Nöbetçi
+                                <span className={`text-[10px] font-medium truncate block ${staff.roleNote ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-400'}`}>
+                                  {staff.roleNote || '24s Nöbetçi'}
                                 </span>
                               </div>
                             </div>

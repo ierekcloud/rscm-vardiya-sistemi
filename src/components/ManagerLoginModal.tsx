@@ -26,6 +26,7 @@ interface ManagerLoginModalProps {
   onClose: () => void;
   onSuccess: (manager: ManagerCredentials) => void;
   isDark?: boolean;
+  defaultDepartment?: string;
 }
 
 type AuthModalMode = 'login' | 'change_password' | 'forgot_password';
@@ -35,12 +36,33 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
   onClose,
   onSuccess,
   isDark = false,
+  defaultDepartment,
 }) => {
   const [mode, setMode] = useState<AuthModalMode>('login');
 
   // Ortak Alanlar
   const [department, setDepartment] = useState('');
   const [registryNumber, setRegistryNumber] = useState('');
+
+  // defaultDepartment verildiğinde otomatik seç
+  React.useEffect(() => {
+    if (isOpen && defaultDepartment) {
+      const deptUpper = defaultDepartment.toUpperCase();
+      if (deptUpper.includes('NOC')) {
+        setDepartment('NOC');
+      } else if (deptUpper.includes('MPLS')) {
+        setDepartment('MPLS');
+      } else if (deptUpper.includes('DSL')) {
+        setDepartment('DSL');
+      } else if (deptUpper.includes('SANTRAL')) {
+        setDepartment('SANTRAL');
+      } else if (deptUpper.includes('TRANSMİSYON') || deptUpper.includes('TRANSMISYON')) {
+        setDepartment('TRANSMİSYON');
+      } else {
+        setDepartment(defaultDepartment);
+      }
+    }
+  }, [isOpen, defaultDepartment]);
 
   // Giriş Alanları
   const [password, setPassword] = useState('');

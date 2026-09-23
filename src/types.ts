@@ -1,5 +1,7 @@
 export type GroupId = 'A' | 'B' | 'C' | 'D';
 
+export type ShiftModelType = 'STANDARD_7P' | 'MEETING_6P';
+
 export interface GroupConfig {
   id: GroupId;
   name: string;
@@ -49,12 +51,15 @@ export interface StaffMember {
   name: string;
   groupId: GroupId;
   orderInGroup: number;
+  roleNote?: string; // Örn: "Hafta İçi & Cumartesi", "Hafta İçi & Pazar"
 }
 
 export interface Department {
   id: string;
   name: string;
   staff: StaffMember[];
+  shiftModel?: ShiftModelType;
+  modelDescription?: string;
 }
 
 export interface StaffLeave {

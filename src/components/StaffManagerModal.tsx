@@ -19,6 +19,7 @@ interface StaffManagerModalProps {
   staffList: StaffMember[];
   onSave: (updatedStaff: StaffMember[]) => void;
   departmentName: string;
+  departmentId?: string;
   isDark?: boolean;
 }
 
@@ -28,6 +29,7 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
   staffList,
   onSave,
   departmentName,
+  departmentId,
   isDark = false,
 }) => {
   // Düzenleme için yerel personel durumu
@@ -45,6 +47,10 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
   useEffect(() => {
     setCurrentStaff([...staffList]);
   }, [staffList, isOpen]);
+
+  const is6PersonModel = departmentId === 'dep-noc-6p';
+  const hasGroupD = currentStaff.some((s) => s.groupId === 'D');
+  const groupKeys: GroupId[] = (is6PersonModel || !hasGroupD) ? ['A', 'B', 'C'] : ['A', 'B', 'C', 'D'];
 
   if (!isOpen) return null;
 
@@ -123,8 +129,6 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
     onSave(currentStaff);
     onClose();
   };
-
-  const groupKeys: GroupId[] = ['A', 'B', 'C', 'D'];
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -219,9 +223,22 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className={`w-3 h-3 rounded-full ${grpConfig.borderBg}`} />
-                        <span className="text-xs font-black tracking-tight">
-                          {grpConfig.name}
-                        </span>
+                        <div>
+                          <span className="text-xs font-black tracking-tight block">
+                            {is6PersonModel ? (
+                              grpId === 'A' ? '1. Grup (A)' :
+                              grpId === 'B' ? '2. Grup (B)' :
+                              '3. Grup (C)'
+                            ) : grpConfig.name}
+                          </span>
+                          {is6PersonModel && (
+                            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold block leading-tight">
+                              {grpId === 'A' && 'Pazartesi & Perşembe'}
+                              {grpId === 'B' && 'Salı & Cuma'}
+                              {grpId === 'C' && 'Salı/Cmt (1. Kişi) • Çar/Paz (2. Kişi)'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <span className={`text-[11px] font-black px-2 py-0.5 rounded-full border ${grpConfig.badgeBg} ${grpConfig.badgeColor}`}>
                         {members.length} Personel
@@ -273,10 +290,10 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                                   : 'border-slate-300 bg-slate-100 text-slate-700'
                               }`}
                             >
-                              <option value="A">Grup A</option>
-                              <option value="B">Grup B</option>
-                              <option value="C">Grup C</option>
-                              <option value="D">Grup D</option>
+                              <option value="A">{is6PersonModel ? '1. Grup (A)' : 'Grup A'}</option>
+                              <option value="B">{is6PersonModel ? '2. Grup (B)' : 'Grup B'}</option>
+                              <option value="C">{is6PersonModel ? '3. Grup (C)' : 'Grup C'}</option>
+                              {!is6PersonModel && <option value="D">Grup D</option>}
                             </select>
 
                             {/* Personel Sil Butonu */}
