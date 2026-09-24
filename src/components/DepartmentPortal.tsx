@@ -12,7 +12,7 @@ import {
   Lock,
   KeyRound,
   ShieldAlert,
-  CheckCircle2
+  CheckCircle2,
 } from 'lucide-react';
 import { ManagerCredentials } from '../utils/auth';
 import { APP_VERSION_LABEL } from '../version';
@@ -26,6 +26,7 @@ interface DepartmentPortalProps {
   currentManager: ManagerCredentials | null;
   onOpenLoginModal: () => void;
   onLogoutManager: () => void;
+  isSuperAdmin?: boolean;
 }
 
 const DEPT_META: Record<string, { icon: React.ReactNode; subtitle: string; tag?: string }> = {
@@ -64,13 +65,14 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
   currentManager,
   onOpenLoginModal,
   onLogoutManager,
+  isSuperAdmin = false,
 }) => {
   const [lockedNotice, setLockedNotice] = useState<string | null>(null);
 
   const handleCardClick = (dept: Department) => {
     const isNoc = dept.id === 'dep-noc';
-    if (isNoc) {
-      onSelectDepartment('dep-noc');
+    if (isNoc || isSuperAdmin) {
+      onSelectDepartment(dept.id);
     } else {
       setLockedNotice(`🔒 ${dept.name} birimi kilitlidir. Sistem şu an sadece NOC pilot biriminde devrededir. Pilot süreç tamamlanıp kabul gördükten sonra bu birim açılacaktır.`);
       setTimeout(() => {
@@ -140,6 +142,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                 tag: 'Vardiyalı'
               };
               const isNoc = dept.id === 'dep-noc';
+              const isAccessible = isNoc || isSuperAdmin;
 
             return (
               <button
@@ -147,15 +150,15 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                 type="button"
                 onClick={() => handleCardClick(dept)}
                 className={`group relative p-4 sm:p-5 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between overflow-hidden ${
-                  isNoc
+                  isAccessible
                     ? 'bg-gradient-to-br from-indigo-50/90 via-white to-white border-indigo-400 shadow-md hover:shadow-xl hover:-translate-y-1 cursor-pointer ring-2 ring-indigo-400/20'
                     : 'bg-slate-100/60 border-slate-300/80 opacity-50 hover:opacity-70 cursor-not-allowed select-none backdrop-blur-[1px]'
                 }`}
-                style={{ backgroundColor: isNoc ? '#ffffff' : 'rgba(241, 245, 249, 0.65)' }}
-                title={isNoc ? `${dept.name} - Canlı ve Açık` : `${dept.name} - Pilot sonrası açılacaktır (Kilitli)`}
+                style={{ backgroundColor: isAccessible ? '#ffffff' : 'rgba(241, 245, 249, 0.65)' }}
+                title={isAccessible ? `${dept.name} - Açık ve Hazır` : `${dept.name} - Pilot sonrası açılacaktır (Kilitli)`}
               >
-                {/* Kilit Simgesi Arka Plan Efekti (NOC Dışındakiler İçin) */}
-                {!isNoc && (
+                {/* Kilit Simgesi Arka Plan Efekti (Erişime Kapalılar İçin) */}
+                {!isAccessible && (
                   <div className="absolute right-3 bottom-3 opacity-15 pointer-events-none">
                     <Lock className="w-20 h-20 text-slate-700" />
                   </div>
@@ -164,12 +167,12 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                 {/* Üst Rozet ve İkon */}
                 <div className="flex items-start justify-between w-full mb-3.5 relative z-10">
                   <div className={`p-3 rounded-xl transition-all duration-300 relative ${
-                    isNoc
+                    isAccessible
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 group-hover:scale-105'
                       : 'bg-slate-200/80 text-slate-600 border border-slate-300'
                   }`}>
                     {meta.icon}
-                    {!isNoc && (
+                    {!isAccessible && (
                       <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center border-2 border-white shadow-xs">
                         <Lock className="w-2.5 h-2.5 stroke-[3]" />
                       </span>
@@ -182,6 +185,13 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                       Pilot Birim • Canlı
+                    </span>
+                  ) : isSuperAdmin ? (
+                    <span 
+                      className="text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 bg-slate-100 border border-slate-300 text-slate-800 shadow-2xs"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                      Aktif
                     </span>
                   ) : (
                     <span 
@@ -200,10 +210,10 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                     style={{ color: '#0f172a' }}
                   >
                     <span className="flex items-center gap-2">
-                      {!isNoc && <KeyRound className="w-4 h-4 text-slate-600 shrink-0" />}
+                      {!isAccessible && <KeyRound className="w-4 h-4 text-slate-600 shrink-0" />}
                       <span>{dept.name}</span>
                     </span>
-                    {isNoc && (
+                    {isAccessible && (
                       <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-1.5 group-hover:translate-x-0 transition-all text-indigo-600" />
                     )}
                   </h3>
@@ -243,7 +253,6 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
             );
           })}
         </div>
-
       </div>
 
       {/* Alt Bilgi & Belirgin Sürüm Rozeti */}

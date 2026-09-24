@@ -46,20 +46,27 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
 
   // defaultDepartment verildiğinde otomatik seç
   React.useEffect(() => {
-    if (isOpen && defaultDepartment) {
-      const deptUpper = defaultDepartment.toUpperCase();
-      if (deptUpper.includes('NOC')) {
-        setDepartment('NOC');
-      } else if (deptUpper.includes('MPLS')) {
-        setDepartment('MPLS');
-      } else if (deptUpper.includes('DSL')) {
-        setDepartment('DSL');
-      } else if (deptUpper.includes('SANTRAL')) {
-        setDepartment('SANTRAL');
-      } else if (deptUpper.includes('TRANSMİSYON') || deptUpper.includes('TRANSMISYON')) {
-        setDepartment('TRANSMİSYON');
-      } else {
-        setDepartment(defaultDepartment);
+    if (isOpen) {
+      setError(null);
+      setPassword('');
+      if (!registryNumber) {
+        setRegistryNumber('12345');
+      }
+      if (defaultDepartment) {
+        const deptUpper = defaultDepartment.toUpperCase();
+        if (deptUpper.includes('NOC')) {
+          setDepartment('NOC');
+        } else if (deptUpper.includes('MPLS')) {
+          setDepartment('MPLS');
+        } else if (deptUpper.includes('DSL')) {
+          setDepartment('DSL');
+        } else if (deptUpper.includes('SANTRAL')) {
+          setDepartment('SANTRAL');
+        } else if (deptUpper.includes('TRANSMİSYON') || deptUpper.includes('TRANSMISYON')) {
+          setDepartment('TRANSMİSYON');
+        } else {
+          setDepartment(defaultDepartment);
+        }
       }
     }
   }, [isOpen, defaultDepartment]);
@@ -218,11 +225,26 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
               {mode === 'forgot_password' && 'Şifre Sıfırlama'}
             </h2>
             <p className="text-xs text-slate-500 mt-1 font-medium">
-              {mode === 'login' && 'Yetkili nöbet yönetimi için lütfen giriş yapınız.'}
+              {mode === 'login' && 'Vardiya hazırlamak ve kadroyu yönetmek için yönetici girişi yapınız.'}
               {mode === 'change_password' && 'Mevcut şifrenizi girerek yeni şifrenizi belirleyin.'}
               {mode === 'forgot_password' && 'Sicil ve birim bilginizle yeni şifrenizi oluşturun.'}
             </p>
           </div>
+
+          {/* Yetki & Görüntüleme Bilgilendirmesi */}
+          {mode === 'login' && (
+            <div className={`p-3 rounded-2xl border mb-4 text-xs flex items-start gap-2.5 ${
+              isDark ? 'bg-indigo-950/40 border-indigo-800/60 text-indigo-200' : 'bg-indigo-50/80 border-indigo-200 text-indigo-900'
+            }`}>
+              <ShieldCheck className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-black block">Yönetici Yetkisi</span>
+                <span className="text-[11px] opacity-80 leading-relaxed block mt-0.5">
+                  Vardiya hazırlama/güncelleme ve kadro yönetimi sadece ilgili birim yöneticisine aittir. Diğer kullanıcılar sistemi görüntüleme (salt okunur) modunda kullanır.
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* 1. GİRİŞ FORMU */}
           {mode === 'login' && (
@@ -230,7 +252,7 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
               {/* Birim Seçimi */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">
-                  BİRİM SEÇİNİZ
+                  BİRİMİNİZİ SEÇİNİZ
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -246,7 +268,7 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
                         : 'bg-slate-50 border-slate-100 focus:border-indigo-500 text-slate-900'
                     }`}
                   >
-                    <option value="" disabled>Seçim Yapınız...</option>
+                    <option value="" disabled>Birim Seçiniz...</option>
                     <option value="NOC">NOC</option>
                     <option value="MPLS">MPLS</option>
                     <option value="DSL">DSL</option>
@@ -304,6 +326,7 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
                   <input
                     type="password"
                     required
+                    autoFocus
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={`block w-full pl-11 pr-4 py-3 rounded-xl border-2 outline-hidden transition-all text-sm font-bold ${
@@ -311,7 +334,7 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
                         ? 'bg-slate-800 border-slate-700 focus:border-indigo-500 text-white' 
                         : 'bg-slate-50 border-slate-100 focus:border-indigo-500 text-slate-900'
                     }`}
-                    placeholder="••••••••"
+                    placeholder="Şifrenizi giriniz..."
                   />
                 </div>
               </div>
@@ -345,10 +368,10 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
                     resetFormState();
                     setMode('change_password');
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                 >
                   <Key className="w-3.5 h-3.5" />
-                  <span>Şifremi Değiştirmek İstiyorum</span>
+                  <span>Şifremi Değiştir</span>
                 </button>
               </div>
             </form>

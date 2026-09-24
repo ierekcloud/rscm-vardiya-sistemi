@@ -19,6 +19,7 @@ import {
   generateYearlyScheduleCsv,
   getRotatedStaff,
 } from './utils/shiftLogic';
+import { exportScheduleToExcel, exportYearlyScheduleToExcel } from './utils/excelExport';
 import { CalendarView } from './components/CalendarView';
 import { MatrixTableView } from './components/MatrixTableView';
 import { DailyListView } from './components/DailyListView';
@@ -31,6 +32,7 @@ import { AgentAuditModal } from './components/AgentAuditModal';
 import { StaffAuditModal } from './components/StaffAuditModal';
 import { LeaveManagementModal } from './components/LeaveManagementModal';
 import { StaffManagerModal } from './components/StaffManagerModal';
+import { ShareAccessModal } from './components/ShareAccessModal';
 import { ManagerCredentials } from './utils/auth';
 import { APP_VERSION_LABEL } from './version';
 
@@ -71,6 +73,8 @@ import {
   Palmtree,
   KeyRound,
   Timer,
+  Share2,
+  Eye,
 } from 'lucide-react';
 
 const STORAGE_KEY_DEPTS_V4 = 'vardiya_telekom_depts_v4';
@@ -82,6 +86,8 @@ const STORAGE_KEY_PORTAL_OPEN_V4 = 'vardiya_portal_open_state_v4';
 const STORAGE_KEY_SELECTED_MONTH_V4 = 'vardiya_selected_month_v4';
 const STORAGE_KEY_SELECTED_YEAR_V4 = 'vardiya_selected_year_v4';
 const STORAGE_KEY_LEAVES_V4 = 'vardiya_telekom_leaves_v4';
+// 6 Kişilik model için son girilen isimleri daima koruyan kalıcı anahtar
+const STORAGE_KEY_NOC_6P_STAFF_PERMANENT = 'rsmc_noc_6p_permanent_staff_v1';
 
 export default function App() {
   // Tema Tercihi (Varsayılan: Göz yormayan, ferah ve yumuşak Açık Mod)
@@ -118,6 +124,17 @@ export default function App() {
   // Departmanlar State'i
   const [departments, setDepartments] = useState<Department[]>(() => {
     try {
+      // 6 kişilik model için kullanıcı tarafından son girilmiş kalıcı isimleri al
+      const savedPermanent6p = localStorage.getItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT);
+      let permanent6pStaff: StaffMember[] | null = null;
+      if (savedPermanent6p) {
+        try {
+          permanent6pStaff = JSON.parse(savedPermanent6p);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       const saved = localStorage.getItem(STORAGE_KEY_DEPTS_V4);
       if (saved) {
         const parsed = JSON.parse(saved) as Department[];
@@ -133,7 +150,26 @@ export default function App() {
             }
           }
         }
+        // Eğer 6 kişilik kadro için son girilmiş kalıcı isimler varsa bunu koru
+        if (permanent6pStaff && permanent6pStaff.length > 0) {
+          return parsed.map((d) => {
+            if (d.id === 'dep-noc-6p') {
+              return { ...d, staff: permanent6pStaff! };
+            }
+            return d;
+          });
+        }
         return parsed;
+      }
+
+      // LocalStorage'da departman yoksa fakat kalıcı 6 kişilik isimler varsa
+      if (permanent6pStaff && permanent6pStaff.length > 0) {
+        return DEFAULT_DEPARTMENTS.map((d) => {
+          if (d.id === 'dep-noc-6p') {
+            return { ...d, staff: permanent6pStaff! };
+          }
+          return d;
+        });
       }
     } catch (e) {
       console.error(e);
@@ -157,8 +193,10 @@ export default function App() {
   // Yönetici Giriş Durumu & Modal Kontrolü
   const [currentManager, setCurrentManager] = useState<ManagerCredentials | null>(() => {
     try {
-      const saved = sessionStorage.getItem('vardiya_manager_auth');
-      if (saved) return JSON.parse(saved);
+      const savedSession = sessionStorage.getItem('vardiya_manager_auth');
+      if (savedSession) return JSON.parse(savedSession);
+      const savedLocal = localStorage.getItem('vardiya_manager_auth');
+      if (savedLocal) return JSON.parse(savedLocal);
     } catch (e) {
       console.error(e);
     }
@@ -166,7 +204,22 @@ export default function App() {
   });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
 
-  // Yönetici 5 Dakikalık Oturum Süresi (300 Saniye)
+  // Süper Admin / Gizli Tam Yetkili Kontrolü
+  const isSuperAdmin = useMemo(() => {
+    if (!currentManager) return false;
+    return !!(
+      currentManager.isSuperAdmin ||
+      currentManager.departmentId === 'all' ||
+      currentManager.departmentName?.toUpperCase().includes('SİSTEM') ||
+      currentManager.departmentName?.toUpperCase().includes('ADMIN') ||
+      currentManager.departmentName?.toUpperCase().includes('SÜPER') ||
+      currentManager.registryNumber?.toLowerCase() === 'ibrahim' ||
+      currentManager.registryNumber?.toLowerCase() === 'ibrahimerek' ||
+      currentManager.registryNumber?.toLowerCase() === 'admin'
+    );
+  }, [currentManager]);
+
+  // Yönetici 5 Dakikalık Oturum Süresi (300 Saniye) - Süper Admin için zaman aşımı kapalıdır
   const MANAGER_SESSION_TIMEOUT_SEC = 300;
   const [sessionRemainingSec, setSessionRemainingSec] = useState<number>(() => {
     try {
@@ -183,9 +236,9 @@ export default function App() {
     return MANAGER_SESSION_TIMEOUT_SEC;
   });
 
-  // Oturum Süresi Sayacı ve Otomatik Çıkış (5 Dakika)
+  // Oturum Süresi Sayacı ve Otomatik Çıkış (Süper Admin hariç 5 Dakika)
   useEffect(() => {
-    if (!currentManager) {
+    if (!currentManager || isSuperAdmin) {
       setSessionRemainingSec(MANAGER_SESSION_TIMEOUT_SEC);
       return;
     }
@@ -202,7 +255,7 @@ export default function App() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentManager]);
+  }, [currentManager, isSuperAdmin]);
 
   const formatSessionTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -284,6 +337,7 @@ export default function App() {
   const [isStaffAuditModalOpen, setIsStaffAuditModalOpen] = useState<boolean>(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
   const [isStaffManagerModalOpen, setIsStaffManagerModalOpen] = useState<boolean>(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
   const [pendingActionAfterLogin, setPendingActionAfterLogin] = useState<string | null>(null);
 
   // Personel İzin / Rapor Kayıtları (Ay ve Birim bazlı kalıcı saklama)
@@ -304,9 +358,14 @@ export default function App() {
   const [isWarningsOpen, setIsWarningsOpen] = useState<boolean>(true);
 
   const handleGenerateSchedule = () => {
+    if (!isAdmin) {
+      setPendingActionAfterLogin('generate_schedule');
+      setIsLoginModalOpen(true);
+      return;
+    }
     setIsPortalOpen(false);
     setActiveTab('matrix');
-    setCarryoverSuccess(`${TURKISH_MONTHS[selectedMonth]} ${selectedYear} için ${activeDepartment.name} vardiya planı güncellendi ve bu bilgisayara kaydedildi.`);
+    setCarryoverSuccess(`✓ ${TURKISH_MONTHS[selectedMonth]} ${selectedYear} için ${activeDepartment.name} vardiya planı güncellendi ve bu bilgisayara kaydedildi.`);
     setTimeout(() => setCarryoverSuccess(null), 3500);
   };
 
@@ -317,6 +376,12 @@ export default function App() {
       localStorage.setItem(STORAGE_KEY_ACTIVE_DEPT_V4, activeDeptId);
       localStorage.setItem(STORAGE_KEY_BALANCES_V4, JSON.stringify(balancesHistory));
       localStorage.setItem(STORAGE_KEY_LEAVES_V4, JSON.stringify(leavesByMonth));
+
+      // 6 Kişilik model personellerini özel kalıcı anahtara da her zaman kaydet
+      const noc6p = departments.find((d) => d.id === 'dep-noc-6p');
+      if (noc6p && noc6p.staff && noc6p.staff.length > 0) {
+        localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(noc6p.staff));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -329,8 +394,8 @@ export default function App() {
 
   // Döngüsel Olarak Kaydırılmış (Rotasyonlu) Personel Listesi
   const activeStaffList = useMemo(() => {
-    return getRotatedStaff(activeDepartment.staff, selectedYear, selectedMonth);
-  }, [activeDepartment.staff, selectedYear, selectedMonth]);
+    return getRotatedStaff(activeDepartment.staff, selectedYear, selectedMonth, activeDepartment.shiftModel);
+  }, [activeDepartment.staff, selectedYear, selectedMonth, activeDepartment.shiftModel]);
 
   // Ay içindeki toplam gün sayısı
   const daysInMonth = useMemo(() => {
@@ -381,7 +446,7 @@ export default function App() {
       const curYear = baseYear + Math.floor((baseMonth + step) / 12);
       const stepKey = `${activeDepartment.id}_${curYear}_${curMonth}`;
 
-      const rotatedStaffForStep = getRotatedStaff(activeDepartment.staff, curYear, curMonth);
+      const rotatedStaffForStep = getRotatedStaff(activeDepartment.staff, curYear, curMonth, activeDepartment.shiftModel);
       const stepInputBalances: Record<string, number> = {};
 
       rotatedStaffForStep.forEach((staff) => {
@@ -518,9 +583,19 @@ export default function App() {
     });
   };
 
-  // Yönetici Yetki Kontrolü: Giriş yapan yönetici şu an seçili birimin yöneticisi mi?
+  // Yönetici Yetki Kontrolü: Giriş yapan yönetici şu an seçili birimin yöneticisi mi veya Sistem Admini mi?
   const isAdmin = useMemo(() => {
     if (!currentManager) return false;
+    // 👑 SÜPER ADMİN (İbrahim Erek) her zaman ve tüm birimlerde tam ve sınırsız yetkilidir!
+    if (isSuperAdmin) return true;
+    // Sistem Yöneticisi / Admin tüm birimlerde tam yetkilidir
+    if (
+      currentManager.departmentId === 'all' ||
+      currentManager.departmentName?.toUpperCase().includes('ADMIN') ||
+      currentManager.departmentName?.toUpperCase().includes('SİSTEM')
+    ) {
+      return true;
+    }
     // NOC için hem standart 7 kişilik (dep-noc) hem de 6 kişilik toplantı modeli (dep-noc-6p) NOC yöneticisine (Dilek) aittir
     if (activeDepartment.id === 'dep-noc' || activeDepartment.id === 'dep-noc-6p') {
       return (
@@ -530,7 +605,7 @@ export default function App() {
       );
     }
     return currentManager.departmentId === activeDepartment.id;
-  }, [currentManager, activeDepartment.id]);
+  }, [currentManager, isSuperAdmin, activeDepartment.id]);
 
   // Yönetici Giriş Başarılı Olduğunda
   const handleManagerLoginSuccess = (mgr: ManagerCredentials) => {
@@ -539,20 +614,25 @@ export default function App() {
     try {
       sessionStorage.setItem('vardiya_manager_auth', JSON.stringify(mgr));
       sessionStorage.setItem('vardiya_manager_login_time', Date.now().toString());
+      if (mgr.isSuperAdmin || mgr.departmentName?.toUpperCase().includes('SÜPER') || mgr.registryNumber === 'ibrahim') {
+        localStorage.setItem('vardiya_manager_auth', JSON.stringify(mgr));
+      }
     } catch (e) {
       console.error(e);
     }
     setIsLoginModalOpen(false);
 
     // Yöneticinin kendi birimine geçiş yap ve portalı kapat.
-    // DİKKAT: Kullanıcı 6 kişilik NOC modelindeyse (dep-noc-6p) ve giriş yapılan yönetici NOC yöneticisiyse,
-    // kullanıcının 6 kişilik model ekranında (dep-noc-6p) kalması garanti edilir; 7 kişilik modele (dep-noc) ATILMAZ!
-    let targetDeptId = mgr.departmentId;
-    if (
-      activeDeptId === 'dep-noc-6p' &&
-      (mgr.departmentId === 'dep-noc' || mgr.departmentName?.toUpperCase() === 'NOC')
-    ) {
-      targetDeptId = 'dep-noc-6p';
+    // DİKKAT: Sistem Admini ve Süper Admin için birim değiştirilmez, kullanıcının mevcut biriminde kalınır.
+    let targetDeptId = activeDeptId;
+    if (mgr.departmentId !== 'all' && !mgr.isSuperAdmin) {
+      targetDeptId = mgr.departmentId;
+      if (
+        activeDeptId === 'dep-noc-6p' &&
+        (mgr.departmentId === 'dep-noc' || mgr.departmentName?.toUpperCase() === 'NOC')
+      ) {
+        targetDeptId = 'dep-noc-6p';
+      }
     }
 
     setActiveDeptId(targetDeptId);
@@ -564,11 +644,18 @@ export default function App() {
       console.error(e);
     }
     setManualCarryovers({});
-    setCarryoverSuccess(`${mgr.departmentName} Yöneticisi (${mgr.registryNumber}) olarak giriş yapıldı. 5 dakikalık yetkili oturumunuz başladı.`);
-    setTimeout(() => setCarryoverSuccess(null), 4500);
+    
+    setCarryoverSuccess(`✓ ${mgr.departmentName} Yöneticisi (${mgr.registryNumber}) olarak yetkili giriş yapıldı. Vardiya yönetim modu aktif.`);
+    setTimeout(() => setCarryoverSuccess(null), 4000);
 
-    // Eğer girişten önce bekleyen bir işlem varsa (örneğin Kadro & Grup Yönetimi modalını açma):
-    if (pendingActionAfterLogin === 'open_staff_manager') {
+    // Eğer girişten önce bekleyen bir işlem varsa:
+    if (pendingActionAfterLogin === 'generate_schedule') {
+      setIsPortalOpen(false);
+      setActiveTab('matrix');
+      setCarryoverSuccess(`✓ ${TURKISH_MONTHS[selectedMonth]} ${selectedYear} için ${activeDepartment.name} vardiya planı yönetici olarak güncellendi ve kaydedildi.`);
+      setTimeout(() => setCarryoverSuccess(null), 3500);
+      setPendingActionAfterLogin(null);
+    } else if (pendingActionAfterLogin === 'open_staff_manager') {
       setIsStaffManagerModalOpen(true);
       setPendingActionAfterLogin(null);
     }
@@ -581,6 +668,7 @@ export default function App() {
     try {
       sessionStorage.removeItem('vardiya_manager_auth');
       sessionStorage.removeItem('vardiya_manager_login_time');
+      localStorage.removeItem('vardiya_manager_auth');
     } catch (e) {
       console.error(e);
     }
@@ -592,24 +680,45 @@ export default function App() {
     setTimeout(() => setCarryoverSuccess(null), 4000);
   };
 
-  // Personel İsim Güncelleme (Yönetici Kontrollü)
+  // Personel İsim Güncelleme (Yönetici Kontrollü, son girilen isimler kalıcı olarak kaydedilir)
   const handleUpdateStaffName = (staffId: string, newName: string) => {
     if (!isAdmin) {
+      setCarryoverSuccess('Personel isimlerini değiştirme yetkisi yalnızca yöneticidedir. Diğer kullanıcılar sadece görüntüleyebilir.');
       setIsLoginModalOpen(true);
       return;
     }
+    const cleanName = newName.trim();
+    if (!cleanName) return;
+
     setDepartments((prevDepts) => {
-      return prevDepts.map((d) => {
+      const updated = prevDepts.map((d) => {
         if (d.id !== activeDepartment.id) return d;
         const updatedStaff = d.staff.map((s) => {
           if (s.id === staffId) {
-            return { ...s, name: newName };
+            return { ...s, name: cleanName };
           }
           return s;
         });
         return { ...d, staff: updatedStaff };
       });
+
+      // 6 Kişilik model ise kalıcı depolamaya da anında yaz
+      if (activeDepartment.id === 'dep-noc-6p') {
+        const noc6p = updated.find((d) => d.id === 'dep-noc-6p');
+        if (noc6p && noc6p.staff) {
+          try {
+            localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(noc6p.staff));
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      return updated;
     });
+
+    setCarryoverSuccess(`"${cleanName}" ismi güncellendi ve kalıcı olarak kaydedildi.`);
+    setTimeout(() => setCarryoverSuccess(null), 3000);
   };
 
   // Yeni Personel Ekle (Gruba Personel Ekleme)
@@ -703,16 +812,29 @@ export default function App() {
   // Kadroyu Toplu Kaydet (Kadro & Grup Yönetim Modalı için)
   const handleSaveAllStaff = (newStaffList: StaffMember[]) => {
     if (!isAdmin) {
+      setCarryoverSuccess('Kadro düzenleme ve kaydetme yetkisi yalnızca yöneticidedir. Diğer kullanıcılar sadece görüntüleyebilir.');
       setIsLoginModalOpen(true);
       return;
     }
     setDepartments((prevDepts) => {
-      return prevDepts.map((d) => {
+      const updated = prevDepts.map((d) => {
         if (d.id !== activeDepartment.id) return d;
         return { ...d, staff: newStaffList };
       });
+
+      // 6 Kişilik model ise kalıcı depolamaya da anında yaz
+      if (activeDepartment.id === 'dep-noc-6p') {
+        try {
+          localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(newStaffList));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      return updated;
     });
-    setCarryoverSuccess(`${activeDepartment.name} kadro ve grup yapılandırması başarıyla güncellendi.`);
+
+    setCarryoverSuccess(`${activeDepartment.name} kadrosu ve son girilen isimler kalıcı olarak kaydedildi.`);
     setTimeout(() => setCarryoverSuccess(null), 3500);
   };
 
@@ -815,8 +937,32 @@ export default function App() {
     setTimeout(() => window.print(), 100);
   };
 
+  const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExportingExcel(true);
+      await exportScheduleToExcel(activeDepartment.name, monthSummary, activeStaffList);
+    } catch (err) {
+      console.error('Excel indirme hatası:', err);
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
+  const handleExportYearlyExcel = async () => {
+    try {
+      setIsExportingExcel(true);
+      await exportYearlyScheduleToExcel(selectedYear, selectedMonth, activeDepartment, undefined);
+    } catch (err) {
+      console.error('Yıllık Excel indirme hatası:', err);
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   const handleExportCSV = () => {
-    exportScheduleToCSV(activeDepartment.name, monthSummary, activeDepartment.staff);
+    exportScheduleToCSV(activeDepartment.name, monthSummary, activeStaffList);
   };
 
   return (
@@ -846,7 +992,7 @@ export default function App() {
             }`}
           >
             {/* Sol: Aktif Birim Seçici & Hızlı Geçiş */}
-            <div className="flex items-center gap-3 z-10">
+            <div className="flex items-center gap-2.5 z-10 flex-wrap">
               {!isPortalOpen && (
                 <button
                   type="button"
@@ -862,6 +1008,38 @@ export default function App() {
                   <span className="hidden sm:inline">BİRİM SEÇİMİNE DÖN</span>
                   <span className="sm:hidden">DÖN</span>
                 </button>
+              )}
+
+              {/* Hızlı Birim Değiştirici */}
+              {isSuperAdmin && !isPortalOpen && (
+                <div className="flex items-center gap-1.5 animate-in fade-in duration-300">
+                  <span className="text-[10px] font-black uppercase text-slate-500 hidden xl:inline">Birim:</span>
+                  <select
+                    value={activeDeptId}
+                    onChange={(e) => {
+                      const newDept = e.target.value;
+                      setActiveDeptId(newDept);
+                      try {
+                        localStorage.setItem(STORAGE_KEY_ACTIVE_DEPT_V4, newDept);
+                      } catch (err) {
+                        console.error(err);
+                      }
+                      setManualCarryovers({});
+                    }}
+                    className={`text-xs font-black px-3 py-2 rounded-full border cursor-pointer outline-hidden shadow-xs transition-all ${
+                      isDarkMode
+                        ? 'bg-slate-800 border-slate-700 text-slate-200 hover:border-slate-600'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                    title="Birim Değiştir"
+                  >
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
 
@@ -938,21 +1116,40 @@ export default function App() {
                 )}
               </button>
 
+              {/* 🔗 ORTAK KLASÖR / PAYLAŞ BUTONU */}
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(true)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-black rounded-full border transition-all cursor-pointer shadow-xs ${
+                  isDarkMode
+                    ? 'bg-indigo-950/60 border-indigo-700 text-indigo-300 hover:bg-indigo-900/80'
+                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                }`}
+                title="Ortak klasöre dosya koyma ve paylaşım araçları"
+              >
+                <Share2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span className="hidden sm:inline">Klasöre Kısayol / Paylaş</span>
+              </button>
+
               
               {currentManager ? (
                 <div className="flex items-center gap-2">
-                  {/* Yönetici Bilgisi (Geri sayım arka planda güvenle devam eder, arayüzde gizlenmiştir) */}
+                  {/* Yönetici Yetki Modu Rozeti */}
                   <div
-                    className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${
-                      isDarkMode
-                        ? 'bg-indigo-950/40 border-indigo-800/60 text-indigo-300'
-                        : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-black shadow-xs ${
+                      isAdmin
+                        ? isDarkMode
+                          ? 'bg-emerald-950/60 border-emerald-700/70 text-emerald-300 shadow-emerald-950/40'
+                          : 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-emerald-600/10'
+                        : isDarkMode
+                        ? 'bg-amber-950/60 border-amber-800 text-amber-300'
+                        : 'bg-amber-50 border-amber-300 text-amber-900'
                     }`}
-                    title="Yönetici Oturumu Aktif"
+                    title={isAdmin ? "Vardiya yönetim ve düzenleme yetkisi aktif" : "Bu birim için yetki yok (Görüntüleme Modu)"}
                   >
-                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                    <span className="hidden md:inline font-extrabold">{currentManager.departmentName}</span>
-                    <span className="text-[11px] opacity-75 font-mono">({currentManager.registryNumber})</span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className="font-extrabold">{currentManager.departmentName || 'Yönetici'}</span>
+                    <span className="text-[10px] opacity-75 font-mono hidden md:inline">({currentManager.registryNumber})</span>
                   </div>
 
                   {/* Şifremi Değiştir / Yönet */}
@@ -986,15 +1183,30 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsLoginModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-full transition-all cursor-pointer shadow-md bg-slate-900 hover:bg-indigo-600 text-white shadow-slate-900/20 active:scale-95 border border-slate-800"
-                  title="Yönetici Girişi"
-                >
-                  <Lock className="w-3.5 h-3.5 text-indigo-400" />
-                  <span className="hidden sm:inline tracking-wider">YÖNETİCİ GİRİŞ</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Görüntüleme Modu (Salt Okunur) Bilgi Rozeti */}
+                  <div
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold ${
+                      isDarkMode
+                        ? 'bg-amber-950/40 border-amber-800/60 text-amber-300'
+                        : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}
+                    title="Sistem görüntüleme modundadır. Vardiya hazırlama ve düzenleme işlemleri sadece yöneticiye aittir."
+                  >
+                    <Eye className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="hidden md:inline">Görüntüleme Modu</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsLoginModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-full transition-all cursor-pointer shadow-md bg-slate-900 hover:bg-indigo-600 text-white shadow-slate-900/20 active:scale-95 border border-slate-800"
+                    title="Vardiya hazırlamak ve personelleri düzenlemek için Yönetici Girişi yapınız"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="hidden sm:inline tracking-wider">YÖNETİCİ GİRİŞ</span>
+                  </button>
+                </div>
               )}
 
               <button id="btn-print-action"
@@ -1023,6 +1235,7 @@ export default function App() {
             currentManager={currentManager}
             onOpenLoginModal={() => setIsLoginModalOpen(true)}
             onLogoutManager={handleManagerLogout}
+            isSuperAdmin={isSuperAdmin}
           />
         ) : (
           /* BİRİM SEÇİLDİKTEN SONRA AÇILAN KURUMSAL YÖNETİM SAYFASI */
@@ -1212,21 +1425,22 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 1. ANA BUTON: VARDİYAYI YENİDEN HESAPLA / GÜNCELLE */}
+                  {/* 1. ANA BUTON: VARDİYAYI HAZIRLA / GÜNCELLE */}
                   <div className="space-y-1.5">
                     <button
                       type="button"
                       onClick={handleGenerateSchedule}
-                      className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer shadow-lg hover:-translate-y-0.5 active:scale-98 flex items-center justify-center gap-2.5 group ${
+                      className={`w-full py-3.5 px-4 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer shadow-lg hover:-translate-y-0.5 active:scale-98 flex items-center justify-center gap-2 group ${
                         isDarkMode
                           ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white shadow-indigo-600/30 ring-1 ring-indigo-500/30'
                           : 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white shadow-indigo-600/20 ring-1 ring-indigo-400/30'
                       }`}
-                      title="Seçili ay için nöbetleri yeniden hesaplar ve günceller"
+                      title="Seçili ay için nöbetleri hazırlar ve günceller"
                     >
                       <RotateCcw className="w-4 h-4 transition-transform group-hover:-rotate-90 duration-300" />
-                      <span>VARDİYAYI YENİDEN HESAPLA / GÜNCELLE</span>
+                      <span>VARDİYAYI HAZIRLA / GÜNCELLE</span>
                     </button>
+
                     <p className="text-[10px] text-center font-bold text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       <span>{TURKISH_MONTHS[selectedMonth]} {selectedYear} vardiyası bilgisayarınızda kayıtlıdır</span>
@@ -1338,6 +1552,7 @@ export default function App() {
                       onClick={() => {
                         if (!isAdmin) {
                           setPendingActionAfterLogin('open_staff_manager');
+                          setCarryoverSuccess('Kadro düzenleme yetkisi yalnızca yöneticidedir. Diğer kullanıcılar sadece görüntüleyebilir.');
                           setIsLoginModalOpen(true);
                           return;
                         }
@@ -1348,7 +1563,7 @@ export default function App() {
                           ? 'bg-gradient-to-r from-blue-950/70 to-indigo-950/70 text-blue-300 border-blue-800/60 hover:border-blue-500 hover:bg-blue-900/60'
                           : 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-950 border-blue-200 hover:border-blue-300 hover:bg-blue-100/60'
                       }`}
-                      title="Gruba personel ekle, sil, grubu 3 kişi yap veya gruplar arasında taşı"
+                      title={isAdmin ? "Gruba personel ekle, sil, grubu 3 kişi yap veya gruplar arasında taşı" : "Kadro yönetimi yalnızca yöneticilere açıktır (Giriş için tıklayınız)"}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
@@ -1369,31 +1584,33 @@ export default function App() {
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <button
                           type="button"
-                          id="btn-export-month-csv"
-                          onClick={handleExportCSV}
+                          id="btn-export-month-excel"
+                          disabled={isExportingExcel}
+                          onClick={handleExportExcel}
                           className={`p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs hover:-translate-y-0.5 flex items-center justify-center gap-1.5 ${
                             isDarkMode
-                              ? 'bg-slate-800/90 border-slate-700 hover:bg-slate-700 text-slate-200'
-                              : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
-                          }`}
-                          title="Seçili ayın vardiya tablosunu Excel (CSV) olarak indirir"
+                              ? 'bg-emerald-950/40 border-emerald-800/60 hover:bg-emerald-900/60 text-emerald-300'
+                              : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-800'
+                          } ${isExportingExcel ? 'opacity-50 cursor-wait' : ''}`}
+                          title="Seçili ayın vardiya tablosunu hafta sonları renkli ve yan yana Excel (.xlsx) olarak indirir"
                         >
-                          <Download className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Excel (CSV)</span>
+                          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>{isExportingExcel ? 'Hazırlanıyor...' : 'Excel (.xlsx)'}</span>
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => generateYearlyScheduleCsv(selectedYear, selectedMonth, activeDepartment, undefined)}
+                          disabled={isExportingExcel}
+                          onClick={handleExportYearlyExcel}
                           className={`p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs hover:-translate-y-0.5 flex items-center justify-center gap-1.5 ${
                             isDarkMode
                               ? 'bg-amber-950/40 text-amber-300 border-amber-900/50 hover:bg-amber-900/60'
                               : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-                          }`}
-                          title="Seçili yıl için 12 aylık tüm planı hesaplar ve Excel (CSV) olarak indirir."
+                          } ${isExportingExcel ? 'opacity-50 cursor-wait' : ''}`}
+                          title="Seçili yıl için 12 aylık tüm planı hesaplar ve renkli Excel (.xlsx) olarak indirir."
                         >
                           <Download className="w-3.5 h-3.5 text-amber-500" />
-                          <span>1 Yıllık Plan</span>
+                          <span>1 Yıllık (Excel)</span>
                         </button>
                       </div>
                     )}
@@ -1613,6 +1830,8 @@ export default function App() {
                         staffList={activeStaffList}
                         summary={monthSummary}
                         isDark={isDarkMode}
+                        isAdmin={isAdmin}
+                        onUpdateStaffName={handleUpdateStaffName}
                       />
                     )}
 
@@ -1773,6 +1992,15 @@ export default function App() {
           onSave={handleSaveAllStaff}
           departmentName={activeDepartment.name}
           departmentId={activeDepartment.id}
+          isDark={isDarkMode}
+        />
+      )}
+
+      {/* 🔗 Ortak Paylaşım & Klasör Kısayol Modalı */}
+      {isShareModalOpen && (
+        <ShareAccessModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
           isDark={isDarkMode}
         />
       )}

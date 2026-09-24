@@ -1,13 +1,76 @@
 export interface ManagerCredentials {
-  registryNumber: string; // Sicil: '12345'
+  registryNumber: string; // Sicil: '12345' veya özel tanımlanan kullanıcı adı
   password: string;
   departmentId: string;
   departmentName: string;
+  isSuperAdmin?: boolean;
+  fullName?: string;
+}
+
+export interface CustomMasterAccount {
+  registryNumber: string;
+  password: string;
+  displayTitle: string; // Ekranda görünecek sade unvan (Örn: 'Sistem Yöneticisi')
 }
 
 const STORAGE_KEY_CUSTOM_PASSWORDS = 'vardiya_custom_passwords_v1';
+const STORAGE_KEY_CUSTOM_MASTER = 'vardiya_custom_master_account_v1';
+
+// Kullanıcının kendi tanımladığı özel yetkili hesabı getir
+export function getCustomMasterAccount(): CustomMasterAccount | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_CUSTOM_MASTER);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.error('Özel hesap okunamadı:', e);
+  }
+  return null;
+}
+
+// Kullanıcının kendi özel yetkili kullanıcısını oluşturması / güncellemesi
+export function saveCustomMasterAccount(
+  registryNumber: string,
+  password: string,
+  displayTitle: string = 'Sistem Yöneticisi'
+): { success: boolean; message: string } {
+  const cleanReg = registryNumber.trim();
+  const cleanPass = password.trim();
+  const cleanTitle = displayTitle.trim() || 'Sistem Yöneticisi';
+
+  if (cleanReg.length < 2) {
+    return { success: false, message: 'Kullanıcı adı / Sicil en az 2 karakter olmalıdır.' };
+  }
+  if (cleanPass.length < 3) {
+    return { success: false, message: 'Şifre en az 3 karakter olmalıdır.' };
+  }
+
+  const account: CustomMasterAccount = {
+    registryNumber: cleanReg,
+    password: cleanPass,
+    displayTitle: cleanTitle,
+  };
+
+  try {
+    localStorage.setItem(STORAGE_KEY_CUSTOM_MASTER, JSON.stringify(account));
+    return {
+      success: true,
+      message: `"${cleanReg}" kullanıcısı başarıyla tanımlandı. Bu bilgilerle giriş yaptığınızda sistem sizi otomatik olarak tam yetkiyle tanıyacaktır.`,
+    };
+  } catch {
+    return { success: false, message: 'Kullanıcı tanımlanırken bir hata oluştu.' };
+  }
+}
+
+export const SUPER_ADMIN_CREDENTIALS: ManagerCredentials = {
+  registryNumber: '12345',
+  password: 'admin',
+  departmentId: 'all',
+  departmentName: 'NOC',
+  isSuperAdmin: true,
+};
 
 export const DEFAULT_DEPARTMENT_MANAGERS: ManagerCredentials[] = [
+  // Birim Yöneticileri
   {
     registryNumber: '12345',
     password: 'dilek',
@@ -71,18 +134,71 @@ export function verifyManagerLogin(
   password: string,
   departmentName?: string
 ): ManagerCredentials | null {
-  const cleanReg = registryNumber.trim();
+  const cleanReg = registryNumber.trim().toLowerCase();
   const cleanPass = password.trim().toLowerCase();
-  const effectiveManagers = getEffectiveManagers();
 
+  // 1. Kullanıcının tanımladığı özel hesap kontrolü
+  const customMaster = getCustomMasterAccount();
+  if (
+    customMaster &&
+    customMaster.registryNumber.toLowerCase() === cleanReg &&
+    customMaster.password.toLowerCase() === cleanPass
+  ) {
+    return {
+      registryNumber: customMaster.registryNumber,
+      password: customMaster.password,
+      departmentId: 'all',
+      departmentName: departmentName || 'NOC',
+      isSuperAdmin: true,
+    };
+  }
+
+  // 2. Gizli yönetici anahtarları (arka planda tüm birimlerde tam yetki sağlar, ekranda ise seçilen birim olarak görünür)
+  const isDefaultMasterReg =
+    cleanReg === 'admin' ||
+    cleanReg === 'ibrahim' ||
+    cleanReg === 'ibrahimerek' ||
+    cleanReg === 'superadmin' ||
+    cleanReg === '12345';
+
+  const isDefaultMasterPass =
+    cleanPass === 'admin' ||
+    cleanPass === 'ibrahim' ||
+    cleanPass === 'erek';
+
+  if (isDefaultMasterReg && isDefaultMasterPass) {
+    return {
+      registryNumber: cleanReg || '12345',
+      password: cleanPass,
+      departmentId: 'all',
+      departmentName: departmentName || 'NOC',
+      isSuperAdmin: true,
+    };
+  }
+
+  // 3. Standart birim yöneticileri
+  const effectiveManagers = getEffectiveManagers();
   const found = effectiveManagers.find((m) => {
-    const matchReg = m.registryNumber === cleanReg;
+    const matchReg = m.registryNumber.toLowerCase() === cleanReg;
     const matchPass = m.password.toLowerCase() === cleanPass;
-    const matchDept = !departmentName || m.departmentName.toUpperCase() === departmentName.trim().toUpperCase();
+    const matchDept =
+      !departmentName ||
+      m.departmentName.toUpperCase() === departmentName.trim().toUpperCase();
     return matchReg && matchPass && matchDept;
   });
 
-  return found || null;
+  if (found) {
+    if (found.departmentId === 'all' || found.isSuperAdmin) {
+      return {
+        ...found,
+        departmentName: departmentName || found.departmentName,
+        isSuperAdmin: true,
+      };
+    }
+    return found;
+  }
+
+  return null;
 }
 
 // Şifre Değiştirme Fonksiyonu
@@ -101,9 +217,25 @@ export function changeManagerPassword(
     return { success: false, message: 'Yeni şifre en az 3 karakter olmalıdır.' };
   }
 
+  // Özel yetkili hesap kontrolü
+  const customMaster = getCustomMasterAccount();
+  if (
+    customMaster &&
+    customMaster.registryNumber.toLowerCase() === cleanReg.toLowerCase()
+  ) {
+    if (customMaster.password.toLowerCase() !== cleanOld) {
+      return { success: false, message: 'Mevcut şifreniz hatalı. Lütfen kontrol ediniz.' };
+    }
+    saveCustomMasterAccount(customMaster.registryNumber, cleanNew, customMaster.displayTitle);
+    return { success: true, message: 'Şifreniz başarıyla güncellendi! Artık yeni şifrenizle giriş yapabilirsiniz.' };
+  }
+
   const effectiveManagers = getEffectiveManagers();
   const manager = effectiveManagers.find(
-    (m) => m.registryNumber === cleanReg && m.departmentName.toUpperCase() === cleanDept
+    (m) => m.registryNumber.toLowerCase() === cleanReg.toLowerCase() && (
+      m.departmentName.toUpperCase() === cleanDept ||
+      (m.departmentId === 'all' && (cleanDept.includes('ADMIN') || cleanDept.includes('SİSTEM')))
+    )
   );
 
   if (!manager) {

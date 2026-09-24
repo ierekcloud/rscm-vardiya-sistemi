@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { DayShift, StaffMember, GROUPS_CONFIG, MonthSummary } from '../types';
+import { Pencil, Check, X } from 'lucide-react';
 
 interface MatrixTableViewProps {
   shifts: DayShift[];
   staffList: StaffMember[];
   summary: MonthSummary;
   isDark?: boolean;
+  isAdmin?: boolean;
   selectedStaffId?: string | null;
   onSelectStaff?: (staffId: string) => void;
+  onUpdateStaffName?: (staffId: string, newName: string) => void;
 }
 
 export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
@@ -15,9 +18,21 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
   staffList,
   summary,
   isDark = false,
+  isAdmin = false,
   selectedStaffId,
   onSelectStaff,
+  onUpdateStaffName,
 }) => {
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState<string>('');
+
+  const handleSaveInline = (staffId: string) => {
+    const trimmed = editingNameValue.trim();
+    if (trimmed && onUpdateStaffName) {
+      onUpdateStaffName(staffId, trimmed);
+    }
+    setEditingStaffId(null);
+  };
   return (
     <div
       className={`rounded-2xl border transition-all duration-200 overflow-hidden backdrop-blur-md ${
@@ -182,23 +197,75 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                       : 'hover:bg-indigo-50/40'
                   }`}
                 >
-                  {/* Personel Adı (Sabit Sütun) */}
-                  <td
-                    className={`sticky left-0 z-10 px-2 py-1.5 text-[11px] sm:text-xs font-bold border-r truncate shadow-[2px_0_6px_rgba(0,0,0,0.05)] ${
-                      isSelected
-                        ? isDark
-                          ? 'bg-[#1a233b] text-indigo-200 border-indigo-500/50'
-                          : 'bg-indigo-100 text-indigo-950 border-indigo-300'
-                        : isDark
-                        ? 'bg-[#0E1526] text-white border-slate-800'
-                        : 'bg-white text-slate-900 border-slate-200'
-                    }`}
-                  >
-                    <div className="truncate flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${grpCfg.borderBg} shrink-0 ring-1 ring-slate-400/30`}></span>
-                      <span className={`truncate ${isSelected ? 'font-black' : ''}`}>{staff.name}</span>
-                    </div>
-                  </td>
+                    {/* Personel Adı (Sabit Sütun) */}
+                    <td
+                      className={`sticky left-0 z-10 px-2 py-1.5 text-[11px] sm:text-xs font-bold border-r truncate shadow-[2px_0_6px_rgba(0,0,0,0.05)] ${
+                        isSelected
+                          ? isDark
+                            ? 'bg-[#1a233b] text-indigo-200 border-indigo-500/50'
+                            : 'bg-indigo-100 text-indigo-950 border-indigo-300'
+                          : isDark
+                          ? 'bg-[#0E1526] text-white border-slate-800'
+                          : 'bg-white text-slate-900 border-slate-200'
+                      }`}
+                    >
+                      {editingStaffId === staff.id ? (
+                        <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            autoFocus
+                            value={editingNameValue}
+                            onChange={(e) => setEditingNameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSaveInline(staff.id);
+                              } else if (e.key === 'Escape') {
+                                setEditingStaffId(null);
+                              }
+                            }}
+                            className="w-28 sm:w-36 text-[11px] font-bold px-1.5 py-0.5 rounded border border-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none ring-1 ring-indigo-500"
+                            placeholder="Yeni İsim"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveInline(staff.id)}
+                            className="p-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                            title="Kaydet (Enter)"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingStaffId(null)}
+                            className="p-1 rounded bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
+                            title="İptal (Esc)"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-1 w-full group/name">
+                          <div className="truncate flex items-center gap-1.5 min-w-0">
+                            <span className={`w-2 h-2 rounded-full ${grpCfg.borderBg} shrink-0 ring-1 ring-slate-400/30`}></span>
+                            <span className={`truncate ${isSelected ? 'font-black' : ''}`} title={staff.name}>{staff.name}</span>
+                          </div>
+                          {isAdmin && onUpdateStaffName && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingStaffId(staff.id);
+                                setEditingNameValue(staff.name);
+                              }}
+                              className="opacity-0 group-hover/name:opacity-100 p-1 rounded hover:bg-indigo-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 transition-opacity cursor-pointer shrink-0"
+                              title="İsmi Değiştir ve Kalıcı Kaydet (Yönetici)"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
 
                   {/* Grup Rozeti */}
                   <td className={`px-0.5 py-1.5 text-center border-r ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>

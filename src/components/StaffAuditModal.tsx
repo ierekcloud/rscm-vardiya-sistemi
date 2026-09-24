@@ -87,7 +87,7 @@ export const StaffAuditModal: React.FC<StaffAuditModalProps> = ({
     for (const m of monthsDef) {
       const stepKey = `${department.id}_${m.year}_${m.month}`;
       const stepLeaves = leavesByMonth[stepKey] || [];
-      const rotatedStaff = getRotatedStaff(department.staff, m.year, m.month);
+      const rotatedStaff = getRotatedStaff(department.staff, m.year, m.month, department.shiftModel);
 
       const mSummary = generateMonthSchedule(
         m.year,

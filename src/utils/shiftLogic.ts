@@ -194,8 +194,24 @@ export function getGearStartGroup(
  * Her ay personelin adaletli bir şekilde gruplar arasında yer değiştirmesini sağlar.
  * D grubu da dahil olmak üzere tüm personeller her ay adil ve sistematik olarak sırayla döner.
  */
-export function getRotatedStaff(staffList: StaffMember[], year: number, month: number): StaffMember[] {
+export function getRotatedStaff(
+  staffList: StaffMember[], 
+  year: number, 
+  month: number,
+  shiftModel?: string
+): StaffMember[] {
   if (!staffList || staffList.length === 0) return [];
+
+  // 6 Kişilik NOC Modelinde personeller sabit gün ve rollere sahiptir (Pzt/Per 1. Grup, Salı/Cuma 2. Grup, Salı/Cmt ve Çar/Paz 3. Grup).
+  // Bu nedenle personeller aylara göre rotasyona UĞRAMAZ; girilen son isimler ve roller her ay KALICIDIR ve SABİTTİR.
+  const is6Person =
+    shiftModel === 'MEETING_6P' ||
+    (!staffList.some((s) => s.groupId === 'D') && staffList.length <= 6) ||
+    staffList.some((s) => s.id?.startsWith('noc6-'));
+
+  if (is6Person) {
+    return [...staffList];
+  }
 
   // Personeli hiyerarşik grup ve sıra düzenine göre sırala
   const sortedStaff = [...staffList].sort((a, b) => {
@@ -1025,7 +1041,7 @@ export function generateYearlyScheduleCsv(year: number, startMonth: number, depa
     const currentYear = year + Math.floor((startMonth + i) / 12);
     const monthName = TURKISH_MONTHS[currentMonthIndex];
 
-    const rotatedStaff = getRotatedStaff(department.staff, currentYear, currentMonthIndex);
+    const rotatedStaff = getRotatedStaff(department.staff, currentYear, currentMonthIndex, department.shiftModel);
     
     const summary = generateMonthSchedule(
       currentYear,
