@@ -114,10 +114,8 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
               </th>
 
               {shifts.map((s) => {
-                const dayOfWeek = s.date.getDay();
-                const isSat = dayOfWeek === 6;
-                const isSun = dayOfWeek === 0;
-                const isWeekend = isSat || isSun;
+                // SADECE Cumartesi ve Pazar günleri hafta sonudur, hafta içi (Pzt-Cum) ASLA boyanamaz
+                const isWeekend = Boolean(s.isWeekend);
 
                 return (
                   <th
@@ -282,10 +280,9 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                       shift.dutyStaff.some((s) => s.id === staff.id) ||
                       (shift.supportStaff ? shift.supportStaff.some((s) => s.id === staff.id) : false);
                     const isLeave = shift.leaves?.some((l) => l.staff.id === staff.id) || false;
-                    const dayOfWeek = shift.date.getDay();
-                    const isSat = dayOfWeek === 6;
-                    const isSun = dayOfWeek === 0;
-                    const isWeekend = isSat || isSun;
+                    
+                    // SADECE Cumartesi ve Pazar sütunları boyalı olmalı, hafta içi (Pzt-Cum) ASLA boyanamaz
+                    const isWeekend = Boolean(shift.isWeekend);
 
                     const cellBg = isWeekend
                       ? isDark

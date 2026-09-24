@@ -41,10 +41,9 @@ export const PrintSheet: React.FC<PrintSheetProps> = ({
             <th className="border border-black p-1 text-left">Personel Adı Soyadı</th>
             <th className="border border-black p-1 text-center">Grup</th>
             {summary.shifts.map((s) => {
-              const dayOfWeek = s.date.getDay();
-              const isSun = dayOfWeek === 0;
-              const isSat = dayOfWeek === 6;
-              const isWeekend = isSun || isSat;
+              const isWeekend = Boolean(s.isWeekend);
+              const isSun = s.dayName === 'Pazar' || (s.date && s.date.getDay() === 0);
+              const isSat = s.dayName === 'Cumartesi' || (s.date && s.date.getDay() === 6);
 
               return (
                 <th
@@ -92,8 +91,7 @@ export const PrintSheet: React.FC<PrintSheetProps> = ({
                   const isDuty = s.dutyStaff.some((member) => member.id === st.id);
                   const isSupport = s.supportStaff ? s.supportStaff.some((member) => member.id === st.id) : false;
                   const isLeave = s.leaves ? s.leaves.some((l) => l.staff.id === st.id) : false;
-                  const dayOfWeek = s.date.getDay();
-                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                  const isWeekend = Boolean(s.isWeekend);
 
                   return (
                     <td

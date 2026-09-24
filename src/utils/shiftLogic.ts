@@ -255,6 +255,25 @@ export function getRotatedStaff(
 }
 
 /**
+ * Herhangi bir yıl, ay ve gün için saat 12:00 (öğle vakti) referans alınarak
+ * timezone ve DST (gün ışığından yararlanma) sınır geçişleri kaynaklı gün kaymalarını
+ * %100 engelleyen güvenli haftanın günü hesaplaması.
+ * 0 = Pazar, 1 = Pazartesi, ..., 6 = Cumartesi
+ */
+export function getSafeDayOfWeek(year: number, month: number, day: number): number {
+  return new Date(year, month, day, 12, 0, 0).getDay();
+}
+
+/**
+ * SADECE Cumartesi (6) ve Pazar (0) günleri hafta sonu kabul edilir.
+ * Hafta içi günler (Pzt, Sal, Çar, Per, Cum) ASLA hafta sonu sayılamaz!
+ */
+export function isDateWeekend(year: number, month: number, day: number): boolean {
+  const dow = getSafeDayOfWeek(year, month, day);
+  return dow === 0 || dow === 6;
+}
+
+/**
  * Belirli bir ay için hedef çalışma gününü hesaplar:
  * Kural: Ay 30 çekiyorsa 26 gün, 31 çekiyorsa 27 gün, 29 çekiyorsa 25 gün, 28 çekiyorsa 24 gün.
  * Haftalık 6 gün çalışma esası gereği 4 pazar günü düşülür.
@@ -263,7 +282,7 @@ export function calculateTargetWorkingDays(year: number, month: number): number 
   const totalDays = new Date(year, month + 1, 0).getDate();
   let sundays = 0;
   for (let d = 1; d <= totalDays; d++) {
-    if (new Date(year, month, d).getDay() === 0) sundays++;
+    if (getSafeDayOfWeek(year, month, d) === 0) sundays++;
   }
   return totalDays - sundays;
 }
@@ -587,8 +606,7 @@ export function generateMonthSchedule(
         staffList.forEach(s => { candidateDuties[s.id] = 0; });
         
         for (let d = 1; d <= totalDays; d++) {
-          const dDate = new Date(year, month, d);
-          const dow = dDate.getDay();
+          const dow = getSafeDayOfWeek(year, month, d);
           
           if (customOverrides[d]) {
             const oG = customOverrides[d];
@@ -663,8 +681,10 @@ export function generateMonthSchedule(
   let weekdayCount = 0;
   
   for (let day = 1; day <= totalDays; day++) {
-    const date = new Date(year, month, day);
-    const dayOfWeek = date.getDay(); // 0 = Pazar, 6 = Cumartesi
+    // Saat 12:00 verilerek gün dönümü / DST kaymaları tamamen önlenir
+    const date = new Date(year, month, day, 12, 0, 0);
+    const dayOfWeek = getSafeDayOfWeek(year, month, day); // 0 = Pazar, 6 = Cumartesi
+    // SADECE Cumartesi (6) ve Pazar (0) günleri hafta sonudur, hafta içi (1-5) ASLA boyanamaz!
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
     let dutyGroupId: GroupId = 'A';
@@ -896,8 +916,7 @@ export function generateMonthSchedule(
     const stLeaves = leaves.filter((l) => l.staffId === st.id);
     stLeaves.forEach((l) => {
       for (let d = Math.max(1, l.startDay); d <= Math.min(totalDays, l.endDay); d++) {
-        const dDate = new Date(year, month, d);
-        if (dDate.getDay() !== 0) { // Pazar günü zaten tatil olduğu için çalışma gününden düşülmez
+        if (getSafeDayOfWeek(year, month, d) !== 0) { // Pazar günü zaten tatil olduğu için çalışma gününden düşülmez
           staffLeaveWorkDays++;
         }
       }

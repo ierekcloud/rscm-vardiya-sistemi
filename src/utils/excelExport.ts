@@ -121,8 +121,7 @@ export async function exportScheduleToExcel(
       // Gün Sütunları
       const dayIndex = colIdx - 3;
       const shift = summary.shifts[dayIndex];
-      const dayOfWeek = shift.date.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // 0=Pazar, 6=Cumartesi
+      const isWeekend = Boolean(shift.isWeekend);
 
       if (isWeekend) {
         // HAFTA SONU RENKLENDİRMESİ (Amber / Canlı Altın Sarısı)
@@ -222,8 +221,7 @@ export async function exportScheduleToExcel(
         // Günlük Vardiya Hücreleri
         const dayIdx = cIdx - 3;
         const shift = summary.shifts[dayIdx];
-        const dayOfWeek = shift.date.getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isWeekend = Boolean(shift.isWeekend);
         const val = cell.value;
 
         if (val === 'ABC') {
@@ -313,7 +311,7 @@ export async function exportScheduleToExcel(
     } else if (cIdx >= 3 && cIdx <= totalDays + 2) {
       const dayIdx = cIdx - 3;
       const shift = summary.shifts[dayIdx];
-      const isWeekend = shift.date.getDay() === 0 || shift.date.getDay() === 6;
+      const isWeekend = Boolean(shift.isWeekend);
       cell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: isWeekend ? 'FF92400E' : 'FF1E293B' } };
       cell.fill = {
         type: 'pattern',
@@ -473,7 +471,7 @@ export async function exportYearlyScheduleToExcel(
       } else if (colIdx >= 3 && colIdx <= totalDays + 2) {
         const dIdx = colIdx - 3;
         const shift = summary.shifts[dIdx];
-        const isWk = shift.date.getDay() === 0 || shift.date.getDay() === 6;
+        const isWk = Boolean(shift.isWeekend);
 
         if (isWk) {
           c4.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF78350F' } };

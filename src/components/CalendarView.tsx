@@ -20,7 +20,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onDayClick,
 }) => {
   // İlk günün haftanın hangi günü olduğunu bulalım (Pazartesi = 0 .. Pazar = 6)
-  const firstDayDate = new Date(year, month, 1);
+  // Saat 12:00 referansıyla gün dönümü / DST kayması tamamen engellenir
+  const firstDayDate = new Date(year, month, 1, 12, 0, 0);
   let firstDayIndex = firstDayDate.getDay() - 1; // 0=Pzt..6=Paz
   if (firstDayIndex === -1) firstDayIndex = 6; // Pazar günüyse 6
 
@@ -93,8 +94,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         {/* Günler */}
         {shifts.map((shift) => {
-          const isWeekend = shift.isWeekend;
-          const isSun = shift.date.getDay() === 0;
+          const isWeekend = Boolean(shift.isWeekend);
+          const isSun = shift.dayName === 'Pazar' || (shift.date && shift.date.getDay() === 0);
           // Günün görevli personellerinden hangi grupların çalıştığını bul
           const uniqueGroupIds = shift.dutyStaff.map(s => s.groupId).filter((value, index, self) => self.indexOf(value) === index) as GroupId[];
 

@@ -168,14 +168,14 @@ export const DailyListView: React.FC<DailyListViewProps> = ({
                     }`}>
                       ({shift.dayName})
                     </span>
-                    {shift.date.getDay() === 0 && (
+                    {(shift.dayName === 'Pazar' || (shift.date && shift.date.getDay() === 0)) && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-md font-black border shadow-2xs ${
                         isDark ? 'bg-amber-500/30 text-amber-200 border-amber-500/50' : 'bg-amber-200 text-amber-950 border-amber-300'
                       }`}>
                         Pazar (Tatil)
                       </span>
                     )}
-                    {shift.date.getDay() === 6 && (
+                    {(shift.dayName === 'Cumartesi' || (shift.date && shift.date.getDay() === 6)) && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-md font-black border shadow-2xs ${
                         isDark ? 'bg-amber-500/30 text-amber-200 border-amber-500/50' : 'bg-amber-200 text-amber-950 border-amber-300'
                       }`}>
