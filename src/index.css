@@ -8,6 +8,8 @@
     -moz-osx-font-smoothing: grayscale;
     background-color: #e2e8f0;
     color: #0f172a;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   body {
@@ -15,6 +17,8 @@
     background-color: #e2e8f0;
     color: #0f172a;
     min-height: 100vh;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   /* Rakamların sütunlarda tam hizalı durması için Tabular Numbers */

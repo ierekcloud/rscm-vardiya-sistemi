@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Department } from '../types';
 import { 
   Network, 
@@ -13,9 +13,12 @@ import {
   KeyRound,
   ShieldAlert,
   CheckCircle2,
+  Eye,
+  Trash2,
 } from 'lucide-react';
 import { ManagerCredentials } from '../utils/auth';
 import { APP_VERSION_LABEL } from '../version';
+import { getVisitorAnalytics, resetVisitorStats, VisitorStats } from '../utils/visitorTracker';
 import rscmBackdropImg from '../assets/images/rscm_network_backdrop_1789497823958.jpg';
 
 interface DepartmentPortalProps {
@@ -27,6 +30,7 @@ interface DepartmentPortalProps {
   onOpenLoginModal: () => void;
   onLogoutManager: () => void;
   isSuperAdmin?: boolean;
+  onOpenAnalyticsModal?: () => void;
 }
 
 const DEPT_META: Record<string, { icon: React.ReactNode; subtitle: string; tag?: string }> = {
@@ -65,8 +69,36 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
   onOpenLoginModal,
   onLogoutManager,
   isSuperAdmin = false,
+  onOpenAnalyticsModal,
 }) => {
   const [lockedNotice, setLockedNotice] = useState<string | null>(null);
+  const [visitorStats, setVisitorStats] = useState<VisitorStats>(() => getVisitorAnalytics());
+  const [confirmResetPortal, setConfirmResetPortal] = useState<boolean>(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setVisitorStats(getVisitorAnalytics());
+    };
+    window.addEventListener('rsmc_visitor_stats_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('rsmc_visitor_stats_updated', handleUpdate);
+    };
+  }, []);
+
+  const handleResetPortal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirmResetPortal) {
+      setConfirmResetPortal(true);
+      setTimeout(() => setConfirmResetPortal(false), 5000);
+      return;
+    }
+    const clean = resetVisitorStats();
+    setVisitorStats(clean);
+    setConfirmResetPortal(false);
+    setResetSuccessMessage('✓ Ziyaretçi sayacı sıfırlandı (0).');
+    setTimeout(() => setResetSuccessMessage(null), 3500);
+  };
 
   const handleCardClick = (dept: Department) => {
     const isNoc = dept.id === 'dep-noc' || dept.id === 'dep-noc-6p' || dept.id === 'dep-noc-6p-ind';
@@ -238,6 +270,91 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
             );
           })}
         </div>
+
+        {/* 🛡️ SÜPER ADMİN: ZİYARETÇİ TAKİP PANELİ (Sadece Admin Girişinde Ana Sayfada Görüntülenir) */}
+        {isSuperAdmin && (
+          <div className="mt-6 pt-5 border-t border-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-sky-500/10 border-2 border-amber-400/80 shadow-md">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
+                    <ShieldAlert className="w-5 h-5 text-slate-950" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
+                        Ziyaretçi Takip & Giriş Konsolu
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 shadow-xs uppercase tracking-wider">
+                        Sadece Admin
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 font-bold mt-0.5">
+                      Siteye kaç kişinin girdiğini, tekil ziyaretçi sayılarını ve canlı hareketleri izleyin.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Butonlar */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={onOpenAnalyticsModal}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
+                  >
+                    <Eye className="w-4 h-4 text-amber-400" />
+                    <span>Detaylı Ziyaretçi Panelini Aç</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetPortal}
+                    className={`inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
+                      confirmResetPortal
+                        ? 'border-rose-600 bg-rose-600 text-white font-black animate-pulse'
+                        : 'border-rose-300 text-rose-700 bg-white/90 hover:bg-rose-50'
+                    }`}
+                    title={confirmResetPortal ? "Onaylamak için tekrar tıklayın (0'lanır)" : "Ziyaretçi Sayacını Sıfırla"}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{confirmResetPortal ? '⚠️ Onayla (0\'la)' : 'Sıfırla'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Bildirim */}
+              {resetSuccessMessage && (
+                <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-800 text-xs font-black flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>{resetSuccessMessage}</span>
+                </div>
+              )}
+
+              {/* Mini İstatistik Sayacı */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-3.5 border-t border-amber-300/40">
+                <div className="p-2.5 rounded-xl bg-white/90 border border-slate-200 text-center shadow-xs">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Toplam Ziyaret</div>
+                  <div className="text-xl font-black text-indigo-700">{visitorStats.totalVisits}</div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/90 border border-slate-200 text-center shadow-xs">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Tekil Ziyaretçi</div>
+                  <div className="text-xl font-black text-emerald-700">{visitorStats.uniqueVisitors}</div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/90 border border-slate-200 text-center shadow-xs">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Bugün Giren</div>
+                  <div className="text-xl font-black text-amber-700">{visitorStats.todayVisits}</div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/90 border border-slate-200 text-center shadow-xs">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Anlık Aktif</div>
+                  <div className="text-xl font-black text-sky-700 flex items-center justify-center gap-1.5">
+                    {visitorStats.activeNow > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />}
+                    {visitorStats.activeNow}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Alt Bilgi & Belirgin Sürüm Rozeti */}

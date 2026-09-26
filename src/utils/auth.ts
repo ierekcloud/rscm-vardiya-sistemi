@@ -1,3 +1,5 @@
+import { recordAdminLoginAttempt } from './visitorTracker';
+
 export interface ManagerCredentials {
   registryNumber: string; // Sicil: '12345' veya özel tanımlanan kullanıcı adı
   password: string;
@@ -163,17 +165,23 @@ export function verifyManagerLogin(
 
   const isDefaultMasterPass =
     cleanPass === 'admin' ||
+    cleanPass === 'admin123' ||
     cleanPass === 'ibrahim' ||
-    cleanPass === 'erek';
+    cleanPass === 'erek' ||
+    cleanPass === 'rsmc2026' ||
+    cleanPass === '12345';
 
   if (isDefaultMasterReg && isDefaultMasterPass) {
-    return {
-      registryNumber: cleanReg || '12345',
+    const adminAccount: ManagerCredentials = {
+      registryNumber: cleanReg || 'admin',
       password: cleanPass,
       departmentId: 'all',
       departmentName: departmentName || 'NOC',
       isSuperAdmin: true,
+      fullName: cleanReg.includes('ibrahim') ? 'İbrahim Erek (Süper Admin)' : 'Sistem Yöneticisi (Admin)',
     };
+    recordAdminLoginAttempt(cleanReg, true, 'Süper Admin');
+    return adminAccount;
   }
 
   // 3. Standart birim yöneticileri
@@ -188,7 +196,9 @@ export function verifyManagerLogin(
   });
 
   if (found) {
-    if (found.departmentId === 'all' || found.isSuperAdmin) {
+    const isMaster = found.departmentId === 'all' || found.isSuperAdmin;
+    recordAdminLoginAttempt(cleanReg, true, isMaster ? 'Süper Admin' : `${found.departmentName} Yöneticisi`);
+    if (isMaster) {
       return {
         ...found,
         departmentName: departmentName || found.departmentName,
@@ -198,6 +208,7 @@ export function verifyManagerLogin(
     return found;
   }
 
+  recordAdminLoginAttempt(cleanReg, false, 'Yetkisiz Kullanıcı');
   return null;
 }
 

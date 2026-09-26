@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   TrendingUp,
   Clock,
-  Printer,
   Copy,
   Check,
   Users,

@@ -38,6 +38,8 @@ import { ShiftSwapModal } from './components/ShiftSwapModal';
 import { LeaveManagementModal } from './components/LeaveManagementModal';
 import { StaffManagerModal } from './components/StaffManagerModal';
 import { ShareAccessModal } from './components/ShareAccessModal';
+import { AdminAnalyticsModal } from './components/AdminAnalyticsModal';
+import { recordSiteVisit } from './utils/visitorTracker';
 import { ManagerCredentials } from './utils/auth';
 import { APP_VERSION_LABEL } from './version';
 
@@ -47,7 +49,6 @@ import {
   Table as TableIcon,
   List as ListIcon,
   Users,
-  Printer,
   Download,
   Sparkles,
   ChevronLeft,
@@ -63,6 +64,7 @@ import {
   RotateCcw,
   Clock,
   ShieldCheck,
+  ShieldAlert,
   CalendarCheck,
   CheckCircle2,
   LayoutDashboard,
@@ -239,6 +241,7 @@ export default function App() {
     return null;
   });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [isAdminAnalyticsModalOpen, setIsAdminAnalyticsModalOpen] = useState<boolean>(false);
 
   // Süper Admin / Gizli Tam Yetkili Kontrolü
   const isSuperAdmin = useMemo(() => {
@@ -481,6 +484,19 @@ export default function App() {
   const activeDepartment = useMemo(() => {
     return departments.find((d) => d.id === activeDeptId) || departments[0];
   }, [departments, activeDeptId]);
+
+  // 📡 Canlı Site Ziyaretçisi & Giriş Takip Kaydı (Arka Plan)
+  useEffect(() => {
+    const role = currentManager
+      ? isSuperAdmin
+        ? `Süper Admin (${currentManager.registryNumber})`
+        : `${currentManager.departmentName} Yöneticisi`
+      : 'Ziyaretçi (Personel)';
+    recordSiteVisit(
+      isPortalOpen ? 'RSMC Ana Portal' : (activeDepartment?.name || 'NOC'),
+      role
+    );
+  }, [isPortalOpen, activeDepartment?.name, currentManager, isSuperAdmin]);
 
   // Döngüsel Olarak Kaydırılmış (Rotasyonlu) Personel Listesi
   const activeStaffList = useMemo(() => {
@@ -1102,10 +1118,6 @@ export default function App() {
     }, 4000);
   };
 
-  const handlePrint = () => {
-    setTimeout(() => window.print(), 100);
-  };
-
   const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
 
   const handleExportExcel = async () => {
@@ -1150,7 +1162,7 @@ export default function App() {
       />
 
       {/* Ekran Arayüzü */}
-      <div className="print:hidden relative z-10 flex flex-col min-h-screen">
+      <div className="print:hidden relative z-10 flex flex-col min-h-screen overflow-x-hidden max-w-full">
         {/* Üst Kurumsal Header - Oval Yüzen Ada Tasarımı */}
         <header className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 pt-3 pb-1 sticky top-0 z-30 transition-all">
           <div
@@ -1160,7 +1172,7 @@ export default function App() {
                 : 'bg-white/90 border-slate-200/90 text-slate-800'
             }`}
           >
-            <div className="flex items-center justify-between gap-3 sm:gap-6 w-full flex-wrap xl:flex-nowrap">
+            <div className="flex items-center justify-between gap-3 sm:gap-6 w-full flex-wrap lg:flex-nowrap">
               {/* SOL: RSMC VARDİYA SİSTEMİ BAŞLIĞI (YAN YANA, BÜYÜTÜLMÜŞ FONT) & BİRİM KONTROLLERİ */}
               <div className="flex items-center gap-3 shrink-0">
                 {/* Logo Rozeti */}
@@ -1266,34 +1278,34 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 💾 DEĞİŞİKLİKLERİ KAYDET BUTONU (BİRİM SEÇİMİNDEN SONRA GÖRÜNÜR, ANA EKRANDAN KALDIRILDI) */}
+                {/* 💾 DEĞİŞİKLİKLERİ KAYDET BUTONU (BİRİM SEÇİMİNDEN SONRA GÖRÜNÜR, KÜÇÜLTÜLDÜ) */}
                 {!isPortalOpen && (
                   <button
                     type="button"
                     id="btn-save-changes-header"
                     onClick={handleManualSave}
                     disabled={isSaving}
-                    className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-black rounded-full border transition-all cursor-pointer shadow-md hover:-translate-y-0.5 active:scale-95 shrink-0 ${
+                    className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-xl border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 active:scale-95 shrink-0 ${
                       justSaved
-                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-500/30'
+                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-500/20'
                         : isDarkMode
-                        ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 border-indigo-400/40 text-white shadow-indigo-950/40'
-                        : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 border-indigo-600 text-white shadow-indigo-600/25'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border-indigo-400/40 text-white'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 border-indigo-600 text-white'
                     }`}
                     title="Tüm vardiya çizelgesini, personel düzenlemelerini, nöbet takaslarını ve izinleri anında tarayıcıya kaydeder."
                   >
                     {isSaving ? (
-                      <RotateCcw className="w-3.5 h-3.5 animate-spin text-white" />
+                      <RotateCcw className="w-3 h-3 animate-spin text-white" />
                     ) : justSaved ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                      <CheckCircle2 className="w-3 h-3 text-white stroke-[2.5]" />
                     ) : (
-                      <Save className="w-3.5 h-3.5 text-white" />
+                      <Save className="w-3 h-3 text-white" />
                     )}
                     <span className="tracking-wide">
-                      {isSaving ? 'Kaydediliyor...' : justSaved ? 'Kaydedildi!' : 'Değişiklikleri Kaydet'}
+                      {isSaving ? 'Kaydediliyor...' : justSaved ? 'Kaydedildi!' : 'Kaydet'}
                     </span>
                     {lastSavedTime && !isSaving && !justSaved && (
-                      <span className="hidden xl:inline text-[10px] opacity-80 font-mono font-normal pl-1.5 border-l border-white/25">
+                      <span className="hidden xl:inline text-[9px] opacity-75 font-mono font-normal pl-1 border-l border-white/25">
                         {lastSavedTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     )}
@@ -1327,7 +1339,7 @@ export default function App() {
 
                 {currentManager ? (
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Yönetici Yetki Modu Rozeti */}
+                    {/* Yönetici Yetki Modu Rozeti (NOC ADMIN) */}
                     <div
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-black shadow-xs ${
                         isAdmin
@@ -1342,7 +1354,7 @@ export default function App() {
                     >
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       <span className="font-extrabold">{currentManager.departmentName || 'Yönetici'}</span>
-                      <span className="text-[10px] opacity-75 font-mono hidden md:inline">({currentManager.registryNumber})</span>
+                      <span className="text-[10px] opacity-75 font-mono hidden sm:inline">({currentManager.registryNumber})</span>
                     </div>
 
                     {/* Şifremi Değiştir */}
@@ -1356,8 +1368,8 @@ export default function App() {
                       }`}
                       title="Yönetici Şifrenizi Değiştirin veya Güncelleyin"
                     >
-                      <KeyRound className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="hidden lg:inline">Şifre Değiştir</span>
+                      <KeyRound className="w-3 h-3 text-indigo-500" />
+                      <span className="hidden xl:inline">Şifre</span>
                     </button>
 
                     {/* Çıkış Yap */}
@@ -1401,20 +1413,6 @@ export default function App() {
                     </button>
                   </div>
                 )}
-
-                {/* Yazdır Butonu */}
-                <button id="btn-print-action"
-                  onClick={handlePrint}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border rounded-full transition-all shadow-xs cursor-pointer shrink-0 ${
-                    isDarkMode
-                      ? 'bg-slate-800/80 border-slate-700 hover:border-slate-600 text-slate-200 hover:bg-slate-700'
-                      : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                  title="A4 Formatında Yazdır"
-                >
-                  <Printer className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="hidden sm:inline">Yazdır</span>
-                </button>
               </div>
             </div>
           </div>
@@ -1443,6 +1441,7 @@ export default function App() {
             onOpenLoginModal={() => setIsLoginModalOpen(true)}
             onLogoutManager={handleManagerLogout}
             isSuperAdmin={isSuperAdmin}
+            onOpenAnalyticsModal={() => setIsAdminAnalyticsModalOpen(true)}
           />
         ) : (
           /* BİRİM SEÇİLDİKTEN SONRA AÇILAN KURUMSAL YÖNETİM SAYFASI */
@@ -2377,6 +2376,17 @@ export default function App() {
         <ShareAccessModal
           isOpen={isShareModalOpen}
           onClose={() => setIsShareModalOpen(false)}
+          isDark={isDarkMode}
+        />
+      )}
+
+      {/* 🛡️ GİZLİ SÜPER ADMİN ZİYARETÇİ & SİSTEM ANALİTİK PANELİ */}
+      {isAdminAnalyticsModalOpen && isSuperAdmin && (
+        <AdminAnalyticsModal
+          isOpen={isAdminAnalyticsModalOpen}
+          onClose={() => setIsAdminAnalyticsModalOpen(false)}
+          isSuperAdmin={isSuperAdmin}
+          currentManagerName={currentManager?.fullName || currentManager?.registryNumber || 'İbrahim Erek'}
           isDark={isDarkMode}
         />
       )}
