@@ -131,7 +131,7 @@ export const LeaveManagementModal: React.FC<LeaveManagementModalProps> = ({
           isDark ? 'border-slate-800' : 'border-slate-100'
         }`}>
           <h3 className="text-xl font-extrabold tracking-tight">
-            İzinli Personel
+            İzin Girişi
           </h3>
 
           <button

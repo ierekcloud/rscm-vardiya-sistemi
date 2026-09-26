@@ -222,7 +222,7 @@ export const StaffAuditModal: React.FC<StaffAuditModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base sm:text-lg">
-                  Personel Denetleme Ajanı
+                  Personel Takip
                 </h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                   Canlı Sağlama Robotu

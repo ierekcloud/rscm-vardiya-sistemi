@@ -213,7 +213,7 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
           ) : (
             <Lock className="w-3.5 h-3.5 text-amber-500" />
           )}
-          <span>Grup & Kadro Yönetimi</span>
+          <span>Personel ve Badi Düzenleme</span>
         </button>
 
         {/* Hızlı Arama Alanı */}

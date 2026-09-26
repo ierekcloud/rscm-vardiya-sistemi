@@ -69,9 +69,9 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
   const [lockedNotice, setLockedNotice] = useState<string | null>(null);
 
   const handleCardClick = (dept: Department) => {
-    const isNoc = dept.id === 'dep-noc';
+    const isNoc = dept.id === 'dep-noc' || dept.id === 'dep-noc-6p' || dept.id === 'dep-noc-6p-ind';
     if (isNoc || isSuperAdmin) {
-      onSelectDepartment(dept.id);
+      onSelectDepartment(dept.id === 'dep-noc' ? 'dep-noc-6p' : dept.id);
     } else {
       setLockedNotice(`🔒 ${dept.name} birimi kilitlidir. Sistem şu an sadece NOC pilot biriminde devrededir. Pilot süreç tamamlanıp kabul gördükten sonra bu birim açılacaktır.`);
       setTimeout(() => {

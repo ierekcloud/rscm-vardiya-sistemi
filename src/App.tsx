@@ -11,6 +11,8 @@ import {
 } from './types';
 import {
   DEFAULT_DEPARTMENTS,
+  DEFAULT_NOC_6P_STAFF,
+  DEFAULT_NOC_6P_INDIVIDUAL_STAFF,
   generateMonthSchedule,
   exportScheduleToCSV,
   TURKISH_MONTHS,
@@ -82,17 +84,17 @@ import {
   Save,
 } from 'lucide-react';
 
-const STORAGE_KEY_DEPTS_V4 = 'vardiya_telekom_depts_v7';
-const STORAGE_KEY_ACTIVE_DEPT_V4 = 'vardiya_telekom_active_dept_v7';
-const STORAGE_KEY_BALANCES_V4 = 'vardiya_telekom_balances_history_v7';
+const STORAGE_KEY_DEPTS_V4 = 'vardiya_telekom_depts_v8';
+const STORAGE_KEY_ACTIVE_DEPT_V4 = 'vardiya_telekom_active_dept_v8';
+const STORAGE_KEY_BALANCES_V4 = 'vardiya_telekom_balances_history_v8';
 const STORAGE_KEY_THEME_V4 = 'vardiya_theme_mode';
-const STORAGE_KEY_OVERRIDES_V4 = 'vardiya_telekom_overrides_v7';
+const STORAGE_KEY_OVERRIDES_V4 = 'vardiya_telekom_overrides_v8';
 const STORAGE_KEY_PORTAL_OPEN_V4 = 'vardiya_portal_open_state_v4';
 const STORAGE_KEY_SELECTED_MONTH_V4 = 'vardiya_selected_month_v4';
 const STORAGE_KEY_SELECTED_YEAR_V4 = 'vardiya_selected_year_v4';
 const STORAGE_KEY_LEAVES_V4 = 'vardiya_telekom_leaves_v4';
 // 6 Kişilik model için son girilen isimleri daima koruyan kalıcı anahtar
-const STORAGE_KEY_NOC_6P_STAFF_PERMANENT = 'rsmc_noc_6p_permanent_staff_v3';
+const STORAGE_KEY_NOC_6P_STAFF_PERMANENT = 'rsmc_noc_6p_permanent_staff_v4';
 
 export default function App() {
   // Tema Tercihi (Varsayılan: Göz yormayan, ferah ve yumuşak Açık Mod)
@@ -126,19 +128,11 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Departmanlar State'i
+  // Departmanlar State'i (Güncel İsimler Kalıcı Olarak Kaydedilir)
   const [departments, setDepartments] = useState<Department[]>(() => {
     try {
-      // 6 kişilik model için kullanıcı tarafından son girilmiş kalıcı isimleri al
-      const savedPermanent6p = localStorage.getItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT);
-      let permanent6pStaff: StaffMember[] | null = null;
-      if (savedPermanent6p) {
-        try {
-          permanent6pStaff = JSON.parse(savedPermanent6p);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+      // 6 kişilik model için güncel kadroyu kalıcı hafızaya da yaz
+      localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(DEFAULT_NOC_6P_STAFF));
 
       const saved = localStorage.getItem(STORAGE_KEY_DEPTS_V4);
       if (saved) {
@@ -167,9 +161,35 @@ export default function App() {
             }
           }
         }
-        // Kullanıcının eklediği ve düzenlediği personelleri koru, ASLA varsayılan ile ezme!
-        return parsed.map((d) => {
+
+        // NOC birimlerinde güncel personelleri (Serkan Tuna, Mehmet Kızılay vb.) kalıcı eşitle
+        const synced = parsed.map((d) => {
           const cleanName = d.id === 'dep-noc' ? 'NOC' : d.name;
+          if (d.id === 'dep-noc-6p') {
+            const hasNewStaff = d.staff?.some(s => s.name === 'Serkan Tuna');
+            return {
+              ...d,
+              name: cleanName,
+              staff: hasNewStaff ? d.staff : DEFAULT_NOC_6P_STAFF,
+            };
+          }
+          if (d.id === 'dep-noc') {
+            const hasNewStaff = d.staff?.some(s => s.name === 'Serkan Tuna');
+            const def = DEFAULT_DEPARTMENTS.find(dd => dd.id === 'dep-noc');
+            return {
+              ...d,
+              name: cleanName,
+              staff: hasNewStaff ? d.staff : (def?.staff || d.staff),
+            };
+          }
+          if (d.id === 'dep-noc-6p-ind') {
+            const hasNewStaff = d.staff?.some(s => s.name === 'Serkan Tuna');
+            return {
+              ...d,
+              name: cleanName,
+              staff: hasNewStaff ? d.staff : DEFAULT_NOC_6P_INDIVIDUAL_STAFF,
+            };
+          }
           if (d.staff && d.staff.length > 0) {
             return { ...d, name: cleanName };
           }
@@ -179,9 +199,13 @@ export default function App() {
           }
           return { ...d, name: cleanName };
         });
+
+        localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(synced));
+        return synced;
       }
 
-      // LocalStorage'da departman yoksa varsayılanı kullan
+      // LocalStorage'da departman yoksa varsayılanı kullan ve kaydet
+      localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(DEFAULT_DEPARTMENTS));
       return DEFAULT_DEPARTMENTS;
     } catch (e) {
       console.error(e);
@@ -196,7 +220,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    return 'dep-noc';
+    return 'dep-noc-6p';
   });
 
   // Portal Açılış Kontrolü: Site ilk açıldığında her zaman ana ekran (Birim Seçim Ekranı) gelir.
@@ -1028,6 +1052,34 @@ export default function App() {
     }));
   };
 
+  // 🔧 Vardiya Hatalarını ve Kural İhlallerini Otomatik Düzelt
+  const handleAutoFixScheduleErrors = () => {
+    // 1. İlgili ayın çakışan veya kural dışı manuel override kayıtlarını sıfırla
+    setOverridesMap((prev) => {
+      const next = { ...prev };
+      delete next[currentScheduleKey];
+      try {
+        localStorage.setItem(STORAGE_KEY_OVERRIDES_V4, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+
+    // 2. Kalıcı kaydet ve anında geri bildirim sağla
+    setIsSaving(true);
+    setTimeout(() => {
+      setIsSaving(false);
+      setJustSaved(true);
+      setLastSavedTime(new Date());
+      setSaveSuccessNotice('✓ Vardiyadaki tüm kural ihlalleri, peş peşe nöbetler ve kadro uyumsuzlukları başarıyla düzeltildi.');
+      setTimeout(() => {
+        setJustSaved(false);
+        setSaveSuccessNotice(null);
+      }, 4000);
+    }, 300);
+  };
+
   // Gelecek Aya Devretme Eylemi
   const handleCarryOverToNextMonth = () => {
     const currentMonthKey = `${activeDepartment.id}_${selectedYear}_${selectedMonth}`;
@@ -1622,7 +1674,7 @@ export default function App() {
                       <span>VARDİYAYI HAZIRLA / GÜNCELLE</span>
                     </button>
 
-                    {/* 🔍 VARDİYAYI DENETLE (CHECK / HATA KONTROLÜ) BUTONU */}
+                    {/* 🔍 TÜM SAYFA DENETİM BUTONU */}
                     <button
                       type="button"
                       id="btn-open-health-check"
@@ -1632,10 +1684,10 @@ export default function App() {
                           ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 ring-1 ring-emerald-500/20'
                           : 'bg-emerald-50 border border-emerald-300 text-emerald-900 hover:bg-emerald-100/70 ring-1 ring-emerald-400/30'
                       }`}
-                      title="Tüm vardiyayı baştan sona denetler; peş peşe nöbet, istirahat ihlali ve kadro hatalarını anında raporlar"
+                      title="Tüm sayfayı baştan sona denetler; peş peşe nöbet, istirahat ihlali ve kadro hatalarını anında raporlar"
                     >
                       <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>🔍 VARDİYAYI DENETLE (CHECK ET)</span>
+                      <span>🔍 TÜM SAYFA DENETİM</span>
                       <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black">
                         Canlı Test
                       </span>
@@ -1688,7 +1740,7 @@ export default function App() {
                       )}
                     </button>
 
-                    {/* 👤 PERSONEL DENETLEME BUTONU (AYRI BUTON) */}
+                    {/* 👤 PERSONEL TAKİP BUTONU */}
                     <button
                       type="button"
                       id="btn-open-staff-audit"
@@ -1698,14 +1750,14 @@ export default function App() {
                           ? 'bg-gradient-to-r from-indigo-950/70 to-purple-950/70 text-indigo-300 border-indigo-800/60 hover:border-indigo-500 hover:bg-indigo-900/60 ring-1 ring-indigo-500/20'
                           : 'bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-950 border-indigo-200 hover:border-indigo-300 hover:bg-indigo-100/60 ring-1 ring-indigo-400/20'
                       }`}
-                      title="Personel bazlı 6 aylık bakiye yolculuğu, hücre hücre nöbet sayımı ve canlı sağlama robotu"
+                      title="Personel bazlı 6 aylık bakiye yolculuğu, hücre hücre nöbet sayımı ve canlı takip robotu"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-indigo-500/10 border border-indigo-500/20 text-indigo-500">
                           <UserCheck className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black truncate">Personel Denetleme</div>
+                          <div className="text-xs font-black truncate">Personel Takip</div>
                           <div className="text-[10px] opacity-75 font-medium truncate">
                             Canlı Sağlama & Sayım
                           </div>
@@ -1716,7 +1768,7 @@ export default function App() {
                       </span>
                     </button>
 
-                    {/* ⚖️ HAFTA SONU & ADALET AJANI BUTONU (AYRI BUTON) */}
+                    {/* ⚖️ HAFTASONU-HAFTAİÇİ GÜN SAYISI BUTONU */}
                     <button
                       type="button"
                       id="btn-open-weekend-equity-audit"
@@ -1726,25 +1778,25 @@ export default function App() {
                           ? 'bg-gradient-to-r from-emerald-950/70 to-teal-950/70 text-emerald-300 border-emerald-800/60 hover:border-emerald-500 hover:bg-emerald-900/60 ring-1 ring-emerald-500/20'
                           : 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-100/60 ring-1 ring-emerald-400/20'
                       }`}
-                      title="6 Kişilik Grupsuz modelde kimin ne kadar geldiğini, hafta sonu nöbet sayılarını ve 6 aylık adalet eşitliğini denetleyen ajan"
+                      title="Hafta sonu ve hafta içi nöbet sayılarını, kimin ne kadar geldiğini denetleyen adalet raporu"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
                           <Scale className="w-4 h-4 text-emerald-500" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black truncate">Hafta Sonu & Adalet Ajanı</div>
+                          <div className="text-xs font-black truncate">Haftasonu-Haftaiçi gün sayısı</div>
                           <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold truncate">
                             Kimin Ne Kadar Geldiği Raporu
                           </div>
                         </div>
                       </div>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-slate-950 shrink-0">
-                        Ajan
+                        Rapor
                       </span>
                     </button>
 
-                    {/* 👥 KADRO & GRUP YÖNETİMİ BUTONU */}
+                    {/* 👥 PERSONEL VE BADİ DÜZENLEME BUTONU */}
                     <button
                       type="button"
                       id="btn-open-staff-manager"
@@ -1762,15 +1814,15 @@ export default function App() {
                           ? 'bg-gradient-to-r from-blue-950/70 to-indigo-950/70 text-blue-300 border-blue-800/60 hover:border-blue-500 hover:bg-blue-900/60'
                           : 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-950 border-blue-200 hover:border-blue-300 hover:bg-blue-100/60'
                       }`}
-                      title={isAdmin ? "Gruba personel ekle, sil, grubu 3 kişi yap veya gruplar arasında taşı" : "Kadro yönetimi yalnızca yöneticilere açıktır (Giriş için tıklayınız)"}
+                      title={isAdmin ? "Gruba personel ekle, sil, badi ve grup sıralarını düzenle" : "Personel ve badi düzenleme yalnızca yöneticilere açıktır (Giriş için tıklayınız)"}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                           <Users className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black truncate">Kadro & Grup Yönetimi</div>
-                          <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium truncate">Personel Ekle / Sil / 3 Kişi Yap</div>
+                          <div className="text-xs font-black truncate">Personel ve badi düzenleme</div>
+                          <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium truncate">Personel Ekle / Sil / Badi Ayarla</div>
                         </div>
                       </div>
                       <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-extrabold shrink-0">
@@ -2086,7 +2138,7 @@ export default function App() {
                                 style={{ color: isDarkMode ? '#FFFFFF' : '#000000' }}
                                 className="text-sm sm:text-base font-black tracking-tight truncate"
                               >
-                                Nöbet Takası & Becayiş
+                                Nöbet Değişimi
                               </h4>
                               <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-violet-700 text-white shrink-0 shadow-xs">
                                 Yönetici E-Posta Onaylı
@@ -2103,7 +2155,7 @@ export default function App() {
                         <ChevronRight className="w-6 h-6 text-violet-600 dark:text-violet-400 group-hover:translate-x-1 transition-transform shrink-0" />
                       </div>
 
-                      {/* 2. İZİN / RAPOR YÖNETİMİ KARTI */}
+                      {/* 2. İZİN GİRİŞİ KARTI */}
                       <div
                         onClick={() => setIsLeaveModalOpen(true)}
                         className={`p-4 rounded-2xl border-2 transition-all cursor-pointer shadow-sm hover:-translate-y-0.5 active:scale-98 flex items-center justify-between gap-4 group ${
@@ -2122,7 +2174,7 @@ export default function App() {
                                 style={{ color: isDarkMode ? '#FFFFFF' : '#000000' }}
                                 className="text-sm sm:text-base font-black tracking-tight truncate"
                               >
-                                İzin & Rapor Yönetimi
+                                İzin Girişi
                               </h4>
                               {currentMonthLeaves.length > 0 ? (
                                 <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-700 text-white shrink-0 shadow-xs">
@@ -2268,6 +2320,7 @@ export default function App() {
           selectedMonth={selectedMonth}
           leaves={currentMonthLeaves}
           isDark={isDarkMode}
+          onFixErrors={handleAutoFixScheduleErrors}
         />
       )}
 

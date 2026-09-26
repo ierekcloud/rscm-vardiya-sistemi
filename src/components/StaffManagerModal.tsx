@@ -146,7 +146,7 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-black tracking-tight">
-                  {departmentName} - Kadro & Grup Yönetimi
+                  {departmentName} - Personel ve Badi Düzenleme
                 </h3>
                 <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                   Toplam {currentStaff.length} Personel

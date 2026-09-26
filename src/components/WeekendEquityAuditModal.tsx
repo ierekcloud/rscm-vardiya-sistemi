@@ -166,7 +166,7 @@ export const WeekendEquityAuditModal: React.FC<WeekendEquityAuditModalProps> = (
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-black text-base sm:text-lg tracking-tight">
-                  Hafta Sonu & Adalet Denetim Ajanı
+                  Haftasonu-Haftaiçi Gün Sayısı
                 </h3>
                 <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
                   %100 Eşitlik Garantisi

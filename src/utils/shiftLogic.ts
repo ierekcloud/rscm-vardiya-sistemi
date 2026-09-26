@@ -9,28 +9,26 @@ export const TURKISH_DAYS_SHORT = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'C
 export const TURKISH_DAYS_FULL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
 // 6 Kişilik Yeni NOC Toplantı Modeli Kadrosu (Gruplu / Badi)
-// 1. Grup: İbrahim Erek, Serkan Aydın (Pzt, Per)
-// 2. Grup: Mehmet Demir, Hasan Akpınar (Salı, Cuma)
-// 3. Grup: Mustafa Telsiz (Sabit Cumartesi - Tek Kişi), Barış Memiş (Sabit Pazar - Tek Kişi)
+// 1. Gün (A Grubu): Serkan Tuna, Mehmet Kızılay (Pzt, Per) -> 2 Kişi
+// 2. Gün (B Grubu): İbrahim Erek, Barış Memiş (Salı, Cuma) -> 2 Kişi
+// 3. & 4. Gün (C Grubu): İbrahim Akpınar (3. Gün - Çar, Cmt), Mustafa Telsiz (4. Gün - Çar, Paz)
 export const DEFAULT_NOC_6P_STAFF: StaffMember[] = [
-  { id: 'noc6-1', name: 'İbrahim Erek', groupId: 'A', orderInGroup: 1, roleNote: 'Pzt & Per (1. Grup)' },
-  { id: 'noc6-2', name: 'Serkan Aydın', groupId: 'A', orderInGroup: 2, roleNote: 'Pzt & Per (1. Grup)' },
-  { id: 'noc6-3', name: 'Mehmet Demir', groupId: 'B', orderInGroup: 1, roleNote: 'Salı & Cuma (2. Grup)' },
-  { id: 'noc6-4', name: 'Hasan Akpınar', groupId: 'B', orderInGroup: 2, roleNote: 'Salı & Cuma (2. Grup)' },
-  { id: 'noc6-5', name: 'Mustafa Telsiz', groupId: 'C', orderInGroup: 1, roleNote: 'Salı & Cmt (3. Grup 1. Kişi)' },
-  { id: 'noc6-6', name: 'Barış Memiş', groupId: 'C', orderInGroup: 2, roleNote: 'Çar & Paz (3. Grup 2. Kişi)' },
+  { id: 'noc6-1', name: 'Serkan Tuna', groupId: 'A', orderInGroup: 1, roleNote: '1. Gün - Pzt & Per (A Grubu)' },
+  { id: 'noc6-2', name: 'Mehmet Kızılay', groupId: 'A', orderInGroup: 2, roleNote: '1. Gün - Pzt & Per (A Grubu)' },
+  { id: 'noc6-3', name: 'İbrahim Erek', groupId: 'B', orderInGroup: 1, roleNote: '2. Gün - Salı & Cuma (B Grubu)' },
+  { id: 'noc6-4', name: 'Barış Memiş', groupId: 'B', orderInGroup: 2, roleNote: '2. Gün - Salı & Cuma (B Grubu)' },
+  { id: 'noc6-5', name: 'İbrahim Akpınar', groupId: 'C', orderInGroup: 1, roleNote: '3. Gün - Çar & Cmt (C Grubu 1. Kişi)' },
+  { id: 'noc6-6', name: 'Mustafa Telsiz', groupId: 'C', orderInGroup: 2, roleNote: '4. Gün - Çar & Paz (C Grubu 2. Kişi)' },
 ];
 
 // 6 Kişilik NOC Grupsuz (Tek Kişi / Bireysel) Modeli Kadrosu
-// 6 Haftalık Tekil Döngü, Herkes Tek Kişi (Badi Yok), Haftalık 48 Saat / 2 Nöbet (Ayda 8-9 Nöbet)
-// 30 Eylül nöbeti Barış Memiş ve Mustafa Telsiz olduğu için 1 ve 2 Ekim'de İbrahim, Serkan, Mehmet, Hasan başlar; ay geçişi çakışmaz!
 export const DEFAULT_NOC_6P_INDIVIDUAL_STAFF: StaffMember[] = [
-  { id: 'noc-ind-1', name: 'İbrahim Erek', groupId: 'P1', orderInGroup: 1, roleNote: '1. Sıra (Bireysel / Tek Kişi)' },
-  { id: 'noc-ind-2', name: 'Serkan Aydın', groupId: 'P2', orderInGroup: 2, roleNote: '2. Sıra (Bireysel / Tek Kişi)' },
-  { id: 'noc-ind-3', name: 'Mehmet Demir', groupId: 'P3', orderInGroup: 3, roleNote: '3. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-1', name: 'Serkan Tuna', groupId: 'P1', orderInGroup: 1, roleNote: '1. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-2', name: 'Mehmet Kızılay', groupId: 'P2', orderInGroup: 2, roleNote: '2. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-3', name: 'İbrahim Erek', groupId: 'P3', orderInGroup: 3, roleNote: '3. Sıra (Bireysel / Tek Kişi)' },
   { id: 'noc-ind-4', name: 'Barış Memiş', groupId: 'P4', orderInGroup: 4, roleNote: '4. Sıra (Bireysel / Tek Kişi)' },
-  { id: 'noc-ind-5', name: 'Mustafa Telsiz', groupId: 'P5', orderInGroup: 5, roleNote: '5. Sıra (Bireysel / Tek Kişi)' },
-  { id: 'noc-ind-6', name: 'Hasan Akpınar', groupId: 'P6', orderInGroup: 6, roleNote: '6. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-5', name: 'İbrahim Akpınar', groupId: 'P5', orderInGroup: 5, roleNote: '5. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-6', name: 'Mustafa Telsiz', groupId: 'P6', orderInGroup: 6, roleNote: '6. Sıra (Bireysel / Tek Kişi)' },
 ];
 
 // Bölümler: NOC (Standart 7 Kişi), NOC (6 Kişi Gruplu), NOC (6 Kişi Grupsuz), MPLS, DSL, SANTRAL, TRANSMİSYON
@@ -41,12 +39,12 @@ export const DEFAULT_DEPARTMENTS: Department[] = [
     shiftModel: 'STANDARD_7P',
     modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü',
     staff: [
-      { id: 'noc-1', name: 'İbrahim Erek', groupId: 'A', orderInGroup: 1 },
-      { id: 'noc-2', name: 'Serkan Aydın', groupId: 'A', orderInGroup: 2 },
-      { id: 'noc-3', name: 'Mehmet Demir', groupId: 'B', orderInGroup: 1 },
-      { id: 'noc-4', name: 'Hasan Akpınar', groupId: 'B', orderInGroup: 2 },
-      { id: 'noc-5', name: 'Mustafa Telsiz', groupId: 'C', orderInGroup: 1 },
-      { id: 'noc-6', name: 'Barış Memiş', groupId: 'C', orderInGroup: 2 },
+      { id: 'noc-1', name: 'Serkan Tuna', groupId: 'A', orderInGroup: 1 },
+      { id: 'noc-2', name: 'Mehmet Kızılay', groupId: 'A', orderInGroup: 2 },
+      { id: 'noc-3', name: 'İbrahim Erek', groupId: 'B', orderInGroup: 1 },
+      { id: 'noc-4', name: 'Barış Memiş', groupId: 'B', orderInGroup: 2 },
+      { id: 'noc-5', name: 'İbrahim Akpınar', groupId: 'C', orderInGroup: 1 },
+      { id: 'noc-6', name: 'Mustafa Telsiz', groupId: 'C', orderInGroup: 2 },
       { id: 'noc-7', name: 'Hüseyin Yıldız', groupId: 'D', orderInGroup: 1 },
     ],
   },
@@ -54,7 +52,7 @@ export const DEFAULT_DEPARTMENTS: Department[] = [
     id: 'dep-noc-6p',
     name: 'NOC (6 Kişi - Gruplu)',
     shiftModel: 'MEETING_6P',
-    modelDescription: '6 Personel • 8-9 Nöbet | Pzt/Per (1. Grup) | Sal/Cum (2. Grup) | Sal/Cmt (1. Kişi) | Çar/Paz (2. Kişi)',
+    modelDescription: '6 Personel • 8-9 Nöbet | A Grubu (Serkan Tuna & Mehmet Kızılay) | B Grubu (İbrahim Erek & Barış Memiş) | C Grubu (İbrahim Akpınar & Mustafa Telsiz)',
     staff: DEFAULT_NOC_6P_STAFF,
   },
   {
@@ -193,15 +191,15 @@ export function getDutyStaffForDay(
   if (groupId === 'C' && !hasGroupD) {
     const cStaff = staffList.filter((s) => s.groupId === 'C');
     if (cStaff.length <= 1) return cStaff;
-    if (dayOfWeek === 2 || dayOfWeek === 6) { // Salı veya Cumartesi -> 1. Kişi (Hasan Çelik - Sabit Tek Kişi)
-      const cmtStaff = cStaff.filter((s) => s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('salı') || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi'));
+    if (dayOfWeek === 6) { // Cumartesi -> 1. Kişi (Mustafa Telsiz - Sabit Tek Kişi)
+      const cmtStaff = cStaff.filter((s) => s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi'));
       return cmtStaff.length > 0 ? [cmtStaff[0]] : [cStaff[0]];
     }
-    if (dayOfWeek === 3 || dayOfWeek === 0) { // Çarşamba veya Pazar -> 2. Kişi (Hüseyin Yıldız - Sabit Tek Kişi)
-      const pazStaff = cStaff.filter((s) => s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('çarşamba') || s.roleNote?.toLowerCase().includes('pazar'));
+    if (dayOfWeek === 0) { // Pazar -> 2. Kişi (Barış Memiş - Sabit Tek Kişi)
+      const pazStaff = cStaff.filter((s) => s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('pazar'));
       return pazStaff.length > 0 ? [pazStaff[0]] : (cStaff.length > 1 ? [cStaff[1]] : [cStaff[0]]);
     }
-    // Diğer günlerde (ör. Pazartesi, Perşembe, Cuma) manuel C atanırsa
+    // Çarşamba ve diğer günlerde C grubu tam kadro (2 kişi) atanır
     return cStaff;
   }
   return staffList.filter((s) => s.groupId === groupId);
@@ -786,40 +784,38 @@ export function generateMonthSchedule(
       dutyStaff = getIndividual6pStaffForDay(year, month, day, staffList);
       dutyGroupId = dutyStaff[0]?.groupId || 'P1';
     } else if (!hasGroupD) {
-      // === 6 KİŞİLİK GRUPLU TOPLANTI MODELİ ===
-      // 1. Grup (A): Pazartesi ve Perşembe (Ayda 8-9 nöbet)
-      // 2. Grup (B): Salı ve Cuma (Ayda 8-9 nöbet)
-      // 3. Grup 1. Kişi (Hasan Çelik): Salı ve Cumartesi (Ayda 8-9 nöbet, Cmt tek kişi)
-      // 3. Grup 2. Kişi (Hüseyin Yıldız): Çarşamba ve Pazar (Ayda 8-9 nöbet, Paz tek kişi)
+      // === 6 KİŞİLİK GRUPLU MODEL ===
+      // 1. Grup (A): Pazartesi ve Perşembe (2 Kişi - Serkan Tuna & Mehmet Kızılay)
+      // 2. Grup (B): Salı ve Cuma (2 Kişi - İbrahim Erek & Barış Memiş)
+      // 3. Grup (C): Çarşamba (2 Kişi - İbrahim Akpınar & Mustafa Telsiz), Cumartesi (1 Kişi - İbrahim Akpınar), Pazar (1 Kişi - Mustafa Telsiz)
       
-      const cStaff1 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('salı') || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi')));
-      const cStaff2 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('çarşamba') || s.roleNote?.toLowerCase().includes('pazar')));
+      const cStaff1 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi')));
+      const cStaff2 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('pazar')));
       const cStaffAll = staffList.filter(s => s.groupId === 'C');
       const p1 = cStaff1 || cStaffAll[0];
       const p2 = cStaff2 || cStaffAll[1] || cStaffAll[0];
 
-      if (dayOfWeek === 1) { // PAZARTESİ: 1. Grup (A)
+      if (dayOfWeek === 1) { // PAZARTESİ: 1. Grup (A) - 2 Kişi (Serkan Tuna & Mehmet Kızılay)
         dutyGroupId = 'A';
         dutyStaff = staffList.filter(s => s.groupId === 'A');
-      } else if (dayOfWeek === 2) { // SALI: 2. Grup (B) + 3. Grup 1. Kişi (Hasan Çelik)
-        dutyGroupId = 'B';
-        const bStaff = staffList.filter(s => s.groupId === 'B');
-        dutyStaff = p1 ? [...bStaff, p1] : bStaff;
-      } else if (dayOfWeek === 3) { // ÇARŞAMBA: 3. Grup 2. Kişi (Hüseyin Yıldız - Sabit Tek Kişi)
-        dutyGroupId = 'C';
-        dutyStaff = p2 ? [p2] : [];
-      } else if (dayOfWeek === 4) { // PERŞEMBE: 1. Grup (A)
-        dutyGroupId = 'A';
-        dutyStaff = staffList.filter(s => s.groupId === 'A');
-      } else if (dayOfWeek === 5) { // CUMA: 2. Grup (B)
+      } else if (dayOfWeek === 2) { // SALI: 2. Grup (B) - TAM 2 KİŞİ (İbrahim Erek & Barış Memiş)
         dutyGroupId = 'B';
         dutyStaff = staffList.filter(s => s.groupId === 'B');
-      } else if (dayOfWeek === 6) { // CUMARTESİ: 3. Grup 1. Kişi (Hasan Çelik - Sabit Tek Kişi)
+      } else if (dayOfWeek === 3) { // ÇARŞAMBA: 3. Grup (C) - TAM 2 KİŞİ (İbrahim Akpınar & Mustafa Telsiz)
         dutyGroupId = 'C';
-        dutyStaff = p1 ? [p1] : [];
-      } else if (dayOfWeek === 0) { // PAZAR: 3. Grup 2. Kişi (Hüseyin Yıldız - Sabit Tek Kişi)
+        dutyStaff = staffList.filter(s => s.groupId === 'C');
+      } else if (dayOfWeek === 4) { // PERŞEMBE: 1. Grup (A) - 2 Kişi (Serkan Tuna & Mehmet Kızılay)
+        dutyGroupId = 'A';
+        dutyStaff = staffList.filter(s => s.groupId === 'A');
+      } else if (dayOfWeek === 5) { // CUMA: 2. Grup (B) - 2 Kişi (İbrahim Erek & Barış Memiş)
+        dutyGroupId = 'B';
+        dutyStaff = staffList.filter(s => s.groupId === 'B');
+      } else if (dayOfWeek === 6) { // CUMARTESİ: 3. Grup 1. Kişi (İbrahim Akpınar - Sabit Tek Kişi)
         dutyGroupId = 'C';
-        dutyStaff = p2 ? [p2] : [];
+        dutyStaff = p1 ? [p1] : (cStaffAll.length > 0 ? [cStaffAll[0]] : []);
+      } else if (dayOfWeek === 0) { // PAZAR: 3. Grup 2. Kişi (Mustafa Telsiz - Sabit Tek Kişi)
+        dutyGroupId = 'C';
+        dutyStaff = p2 ? [p2] : (cStaffAll.length > 1 ? [cStaffAll[1]] : [cStaffAll[0]]);
       }
     } else {
       // === 7 KİŞİLİK STANDART MODEL ===

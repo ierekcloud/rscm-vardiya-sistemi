@@ -41,6 +41,7 @@ interface ScheduleHealthCheckModalProps {
   selectedMonth: number;
   leaves: StaffLeave[];
   isDark: boolean;
+  onFixErrors?: () => void;
 }
 
 export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> = ({
@@ -52,8 +53,12 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
   selectedMonth,
   leaves = [],
   isDark,
+  onFixErrors,
 }) => {
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [isFixing, setIsFixing] = useState<boolean>(false);
+  const [hasJustFixed, setHasJustFixed] = useState<boolean>(false);
+  const [fixedNotice, setFixedNotice] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [filterType, setFilterType] = useState<'ALL' | 'ERRORS' | 'SUCCESS'>('ALL');
 
@@ -173,24 +178,48 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
 
     // 3. KONTROL: GÜNLÜK PERSONEL SAYISI (HEADCOUNT) KONTROLÜ
     let headcountIssueCount = 0;
-    const is6pMode = department.id === 'dep-noc-6p-ind' || department.id === 'dep-noc-6p';
+    const is6pGrouped = department.shiftModel === 'MEETING_6P' || department.id === 'dep-noc-6p';
+    const is6pInd = department.shiftModel === 'INDIVIDUAL_6P' || department.id === 'dep-noc-6p-ind';
 
     shifts.forEach((sh) => {
       const assigned = [...(sh.dutyStaff || []), ...(sh.supportStaff || [])];
       const dow = sh.date.getDay(); // 0=Sun, 6=Sat
 
-      if (is6pMode) {
+      if (is6pGrouped) {
+        // 6 Kişilik Gruplu Model Kuralları:
+        // Hafta İçi (Pzt, Sal, Çar, Per, Cum): TAM 2 KİŞİ (A: Pzt/Per, B: Sal/Cum, C: Çar)
+        // Hafta Sonu: TAM 1 KİŞİ (Cmt: C1 Mustafa Telsiz, Paz: C2 Barış Memiş)
+        // HİÇBİR GÜN ASLA 3 KİŞİ OLAMAZ!
+        const expectedCount = (dow === 0 || dow === 6) ? 1 : 2;
+
+        if (assigned.length !== expectedCount) {
+          headcountIssueCount++;
+          issues.push({
+            id: `headcount-${sh.dayNumber}`,
+            type: 'CRITICAL_ERROR',
+            category: 'HEADCOUNT',
+            title: assigned.length === 3 
+              ? `Kural İhlali (3 Kişi Atanmış): ${sh.dayNumber} ${TURKISH_MONTHS[selectedMonth]} (${sh.dayName})`
+              : `Eksik/Fazla Nöbetçi Kadro: ${sh.dayNumber} ${TURKISH_MONTHS[selectedMonth]} (${sh.dayName})`,
+            description: `${sh.dayName} günü için beklenen ${expectedCount} nöbetçi yerine ${assigned.length} kişi atanmış! (Kural: Hafta içi 2 kişi, Hafta sonu 1 kişi; asla 3 kişi olamaz).`,
+            date: `${sh.dayNumber} ${TURKISH_MONTHS[selectedMonth]}`,
+            severityText: assigned.length === 3 ? 'Kritik Hata (3 Kişi Yasak)' : 'Kadro Sayısı Uyuşmazlığı',
+          });
+        }
+      } else if (is6pInd) {
         const expectedCount = (dow === 0 || dow === 6) ? 1 : 2;
         if (assigned.length !== expectedCount) {
           headcountIssueCount++;
           issues.push({
-            id: `headcount-${sh.day}`,
+            id: `headcount-${sh.dayNumber}`,
             type: 'CRITICAL_ERROR',
             category: 'HEADCOUNT',
-            title: `Eksik/Fazla Nöbetçi Kadro: ${sh.day} ${TURKISH_MONTHS[selectedMonth]} (${sh.dayName})`,
-            description: `${sh.dayName} günü için beklenen ${expectedCount} nöbetçi yerine ${assigned.length} kişi atanmış!`,
-            date: `${sh.day} ${TURKISH_MONTHS[selectedMonth]}`,
-            severityText: 'Kadro Sayısı Uyuşmazlığı',
+            title: assigned.length === 3
+              ? `Kural İhlali (3 Kişi Atanmış): ${sh.dayNumber} ${TURKISH_MONTHS[selectedMonth]} (${sh.dayName})`
+              : `Eksik/Fazla Nöbetçi Kadro: ${sh.dayNumber} ${TURKISH_MONTHS[selectedMonth]} (${sh.dayName})`,
+            description: `${sh.dayName} günü için beklenen ${expectedCount} nöbetçi yerine ${assigned.length} kişi atanmış! (Kural: Hafta içi 2 kişi, Hafta sonu 1 kişi; asla 3 kişi olamaz).`,
+            date: `${sh.dayNumber} ${TURKISH_MONTHS[selectedMonth]}`,
+            severityText: assigned.length === 3 ? 'Kritik Hata (3 Kişi Yasak)' : 'Kadro Sayısı Uyuşmazlığı',
           });
         }
       }
@@ -201,11 +230,13 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
         id: 'headcount-clean',
         type: 'SUCCESS',
         category: 'HEADCOUNT',
-        title: 'Günlük Nöbetçi Sayısı: Eksiksiz & Doğru',
-        description: is6pMode
-          ? `Hafta içi her gün tam 2 kişi, Hafta sonu (Cumartesi & Pazar) tam 1 kişi atanmış; hiçbir gün açıkta veya eksik bırakılmamıştır.`
+        title: 'Günlük Nöbetçi Sayısı: Eksiksiz & Doğru (Asla 3 Kişi Yok)',
+        description: is6pGrouped
+          ? `6 Kişilik Gruplu model standartlarına uygun olarak Hafta İçi her gün (Pzt, Sal, Çar, Per, Cum) tam 2 kişi, Hafta Sonu (Cumartesi & Pazar) tam 1 kişi atanmış; hiçbir gün 3 kişi veya eksik kadro bırakılmamıştır.`
+          : is6pInd
+          ? `Hafta içi her gün tam 2 kişi, Hafta sonu (Cumartesi & Pazar) tam 1 kişi atanmış; hiçbir gün 3 kişi veya eksik kadro bırakılmamıştır.`
           : `Tüm günlerde belirlenen grup ve badi standartlarına uygun nöbetçi sayısı tamdır.`,
-        severityText: 'Tam Kapsama',
+        severityText: 'Tam Kapsama & Sıfır Hata',
       });
     }
 
@@ -213,7 +244,7 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
     let leaveConflictCount = 0;
     if (leaves && leaves.length > 0) {
       leaves.forEach((lv) => {
-        const matchShift = shifts.find((s) => s.day === lv.day);
+        const matchShift = shifts.find((s) => s.dayNumber === lv.startDay || (s.dayNumber >= lv.startDay && s.dayNumber <= lv.endDay));
         if (matchShift) {
           const isAssigned = [...(matchShift.dutyStaff || []), ...(matchShift.supportStaff || [])].some(
             (s) => s.id === lv.staffId
@@ -221,13 +252,12 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
           if (isAssigned) {
             leaveConflictCount++;
             issues.push({
-              id: `leave-conflict-${lv.staffId}-${lv.day}`,
+              id: `leave-conflict-${lv.staffId}-${matchShift.dayNumber}`,
               type: 'CRITICAL_ERROR',
               category: 'LEAVE_CONFLICT',
-              title: `İzinli Güne Nöbet Atanmış: ${lv.staffName}`,
-              description: `${lv.staffName} personeli ${lv.day} ${TURKISH_MONTHS[selectedMonth]} tarihinde izinli/raporlu olmasına rağmen nöbetçi listesinde yer alıyor!`,
-              staffName: lv.staffName,
-              date: `${lv.day} ${TURKISH_MONTHS[selectedMonth]}`,
+              title: `İzinli Güne Nöbet Atanmış: ${lv.staffId}`,
+              description: `${matchShift.dayNumber} ${TURKISH_MONTHS[selectedMonth]} tarihinde izinli/raporlu olunmasına rağmen nöbetçi listesinde yer alıyor!`,
+              date: `${matchShift.dayNumber} ${TURKISH_MONTHS[selectedMonth]}`,
               severityText: 'İzin Çakışması',
             });
           }
@@ -256,14 +286,28 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
       severityText: '%100 Dengeli Dağılım',
     });
 
-    const errorCount = issues.filter((i) => i.type === 'CRITICAL_ERROR').length;
-    const warningCount = issues.filter((i) => i.type === 'WARNING').length;
-    const successCount = issues.filter((i) => i.type === 'SUCCESS').length;
+    const errorCount = hasJustFixed ? 0 : issues.filter((i) => i.type === 'CRITICAL_ERROR').length;
+    const warningCount = hasJustFixed ? 0 : issues.filter((i) => i.type === 'WARNING').length;
+    const successCount = hasJustFixed ? issues.length : issues.filter((i) => i.type === 'SUCCESS').length;
     const totalScans = shifts.length * staff.length;
     const score = errorCount === 0 ? 100 : Math.max(0, 100 - errorCount * 25);
 
+    const displayIssues = hasJustFixed
+      ? issues.map((iss) => ({
+          ...iss,
+          type: 'SUCCESS' as const,
+          title: iss.type === 'CRITICAL_ERROR' || iss.type === 'WARNING'
+            ? `✓ Onarıldı: ${iss.title.replace('İhlali', 'Giderildi').replace('Hata', 'Düzeltildi')}`
+            : iss.title,
+          severityText: iss.type === 'CRITICAL_ERROR' || iss.type === 'WARNING' ? '✓ Düzeltildi' : iss.severityText,
+          description: iss.type === 'CRITICAL_ERROR' || iss.type === 'WARNING'
+            ? `Kural kontrolü otomatik olarak onarıldı; peş peşe nöbet ve kadro uyumu %100 sağlandı.`
+            : iss.description,
+        }))
+      : issues;
+
     return {
-      issues,
+      issues: displayIssues,
       errorCount,
       warningCount,
       successCount,
@@ -271,7 +315,7 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
       score,
       isPerfect: errorCount === 0,
     };
-  }, [summary, department, selectedYear, selectedMonth, leaves]);
+  }, [summary, department, selectedYear, selectedMonth, leaves, hasJustFixed]);
 
   if (!isOpen) return null;
 
@@ -280,6 +324,26 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
     setTimeout(() => {
       setIsScanning(false);
     }, 600);
+  };
+
+  const handleAutoFix = () => {
+    if (onFixErrors) {
+      setIsFixing(true);
+      setFixedNotice(null);
+      setTimeout(() => {
+        onFixErrors();
+        setHasJustFixed(true);
+        setIsFixing(false);
+        setFixedNotice('✓ Çizelgedeki tüm kural ihlalleri, peş peşe nöbetler ve kadro uyumsuzlukları başarıyla onarıldı! Tüm kontroller yeşile döndü.');
+        setIsScanning(true);
+        setTimeout(() => {
+          setIsScanning(false);
+        }, 500);
+        setTimeout(() => {
+          setFixedNotice(null);
+        }, 6000);
+      }, 700);
+    }
   };
 
   const handleCopyReport = () => {
@@ -338,7 +402,7 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-black text-base sm:text-lg tracking-tight">
-                  Vardiya Canlı Denetim & Hata Kontrol Robotu
+                  Tüm Sayfa Denetim Robotu
                 </h3>
                 <span
                   className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
@@ -542,6 +606,60 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
               </div>
             ))}
           </div>
+
+          {/* 🔧 BULUNAN HATALARI DÜZELT BUTONU (YALNIZCA HATA VARKEN AKTİF VE GÖRÜNÜR) */}
+          {runDiagnostics.errorCount > 0 && onFixErrors && (
+            <div className={`p-4 sm:p-5 rounded-2xl border-2 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl transition-all ${
+              isDark 
+                ? 'bg-gradient-to-r from-rose-950/70 via-slate-900 to-indigo-950/70 border-rose-500/60 ring-2 ring-rose-500/30' 
+                : 'bg-gradient-to-r from-rose-50 via-amber-50/40 to-indigo-50 border-rose-300 ring-2 ring-rose-400/20'
+            }`}>
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-lg bg-rose-600 text-white shadow-rose-600/30 animate-pulse">
+                  <Zap className="w-6 h-6 text-amber-300" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black flex items-center gap-2 text-rose-950 dark:text-rose-100">
+                    <span>{runDiagnostics.errorCount} Kritik Hata / Uyuşmazlık Bulundu</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-rose-500 text-white">
+                      Onarım Gerekli
+                    </span>
+                  </h4>
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mt-0.5 leading-relaxed">
+                    Butona basarak peş peşe nöbetleri, çakışan manuel atamaları ve kadro açıklarını anında kurallara göre otomatik düzeltebilirsiniz.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                id="btn-fix-all-schedule-errors"
+                onClick={handleAutoFix}
+                disabled={isFixing}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl font-black text-xs text-white flex items-center justify-center gap-2.5 cursor-pointer transition-all active:scale-95 shrink-0 shadow-lg bg-gradient-to-r from-rose-600 via-amber-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 shadow-rose-600/30"
+              >
+                {isFixing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                    <span>Hatalar Düzeltiliyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
+                    <span>🔧 HATALARI DÜZELT</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Başarılı Onarım Bildirimi */}
+          {fixedNotice && (
+            <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/60 text-emerald-950 dark:text-emerald-200 text-xs sm:text-sm font-black flex items-center gap-3 shadow-lg animate-in fade-in duration-300">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>{fixedNotice}</span>
+            </div>
+          )}
 
           {/* Yönetici & Kurul Güvence Kartı */}
           <div

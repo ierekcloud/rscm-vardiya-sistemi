@@ -210,7 +210,7 @@ ${s1Upper} & ${s2Upper}`;
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-black text-base sm:text-lg tracking-tight">
-                  Nöbet Takası & Becayiş Modülü
+                  Nöbet Değişimi
                 </h3>
                 <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
                   E-Posta & Yönetici Onaylı
