@@ -8,42 +8,61 @@ export const TURKISH_MONTHS = [
 export const TURKISH_DAYS_SHORT = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 export const TURKISH_DAYS_FULL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
-// 6 Kişilik Yeni NOC Toplantı Modeli Kadrosu
-// 1. Grup: Ahmet Yılmaz, Mehmet Demir (Pzt, Per, Cum Dönüşümlü)
-// 2. Grup: Mustafa Kaya, Ali Şahin (Pzt, Per, Cum Dönüşümlü)
-// 3. Grup: Hasan Çelik (Sabit Salı & Cumartesi - Tek Kişi), Hüseyin Yıldız (Sabit Çarşamba & Pazar - Tek Kişi)
+// 6 Kişilik Yeni NOC Toplantı Modeli Kadrosu (Gruplu / Badi)
+// 1. Grup: İbrahim Erek, Serkan Aydın (Pzt, Per)
+// 2. Grup: Mehmet Demir, Hasan Akpınar (Salı, Cuma)
+// 3. Grup: Mustafa Telsiz (Sabit Cumartesi - Tek Kişi), Barış Memiş (Sabit Pazar - Tek Kişi)
 export const DEFAULT_NOC_6P_STAFF: StaffMember[] = [
-  { id: 'noc6-1', name: 'Ahmet Yılmaz', groupId: 'A', orderInGroup: 1, roleNote: 'Pzt & Per (1. Grup)' },
-  { id: 'noc6-2', name: 'Mehmet Demir', groupId: 'A', orderInGroup: 2, roleNote: 'Pzt & Per (1. Grup)' },
-  { id: 'noc6-3', name: 'Mustafa Kaya', groupId: 'B', orderInGroup: 1, roleNote: 'Salı & Cuma (2. Grup)' },
-  { id: 'noc6-4', name: 'Ali Şahin', groupId: 'B', orderInGroup: 2, roleNote: 'Salı & Cuma (2. Grup)' },
-  { id: 'noc6-5', name: 'Hasan Çelik', groupId: 'C', orderInGroup: 1, roleNote: 'Salı & Cmt (3. Grup 1. Kişi)' },
-  { id: 'noc6-6', name: 'Hüseyin Yıldız', groupId: 'C', orderInGroup: 2, roleNote: 'Çar & Paz (3. Grup 2. Kişi)' },
+  { id: 'noc6-1', name: 'İbrahim Erek', groupId: 'A', orderInGroup: 1, roleNote: 'Pzt & Per (1. Grup)' },
+  { id: 'noc6-2', name: 'Serkan Aydın', groupId: 'A', orderInGroup: 2, roleNote: 'Pzt & Per (1. Grup)' },
+  { id: 'noc6-3', name: 'Mehmet Demir', groupId: 'B', orderInGroup: 1, roleNote: 'Salı & Cuma (2. Grup)' },
+  { id: 'noc6-4', name: 'Hasan Akpınar', groupId: 'B', orderInGroup: 2, roleNote: 'Salı & Cuma (2. Grup)' },
+  { id: 'noc6-5', name: 'Mustafa Telsiz', groupId: 'C', orderInGroup: 1, roleNote: 'Salı & Cmt (3. Grup 1. Kişi)' },
+  { id: 'noc6-6', name: 'Barış Memiş', groupId: 'C', orderInGroup: 2, roleNote: 'Çar & Paz (3. Grup 2. Kişi)' },
 ];
 
-// 5 Bölüm: NOC, NOC (6 Kişilik Model), MPLS, DSL, SANTRAL, TRANSMİSYON
+// 6 Kişilik NOC Grupsuz (Tek Kişi / Bireysel) Modeli Kadrosu
+// 6 Haftalık Tekil Döngü, Herkes Tek Kişi (Badi Yok), Haftalık 48 Saat / 2 Nöbet (Ayda 8-9 Nöbet)
+// 30 Eylül nöbeti Barış Memiş ve Mustafa Telsiz olduğu için 1 ve 2 Ekim'de İbrahim, Serkan, Mehmet, Hasan başlar; ay geçişi çakışmaz!
+export const DEFAULT_NOC_6P_INDIVIDUAL_STAFF: StaffMember[] = [
+  { id: 'noc-ind-1', name: 'İbrahim Erek', groupId: 'P1', orderInGroup: 1, roleNote: '1. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-2', name: 'Serkan Aydın', groupId: 'P2', orderInGroup: 2, roleNote: '2. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-3', name: 'Mehmet Demir', groupId: 'P3', orderInGroup: 3, roleNote: '3. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-4', name: 'Barış Memiş', groupId: 'P4', orderInGroup: 4, roleNote: '4. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-5', name: 'Mustafa Telsiz', groupId: 'P5', orderInGroup: 5, roleNote: '5. Sıra (Bireysel / Tek Kişi)' },
+  { id: 'noc-ind-6', name: 'Hasan Akpınar', groupId: 'P6', orderInGroup: 6, roleNote: '6. Sıra (Bireysel / Tek Kişi)' },
+];
+
+// Bölümler: NOC (Standart 7 Kişi), NOC (6 Kişi Gruplu), NOC (6 Kişi Grupsuz), MPLS, DSL, SANTRAL, TRANSMİSYON
 export const DEFAULT_DEPARTMENTS: Department[] = [
   {
     id: 'dep-noc',
-    name: 'NOC (Standart 7 Kişi)',
+    name: 'NOC',
     shiftModel: 'STANDARD_7P',
     modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü',
     staff: [
-      { id: 'noc-1', name: 'Ahmet Yılmaz', groupId: 'A', orderInGroup: 1 },
-      { id: 'noc-2', name: 'Mehmet Demir', groupId: 'A', orderInGroup: 2 },
-      { id: 'noc-3', name: 'Mustafa Kaya', groupId: 'B', orderInGroup: 1 },
-      { id: 'noc-4', name: 'Ali Şahin', groupId: 'B', orderInGroup: 2 },
-      { id: 'noc-5', name: 'Hasan Çelik', groupId: 'C', orderInGroup: 1 },
-      { id: 'noc-6', name: 'Hüseyin Yıldız', groupId: 'C', orderInGroup: 2 },
-      { id: 'noc-7', name: 'İbrahim Erek', groupId: 'D', orderInGroup: 1 },
+      { id: 'noc-1', name: 'İbrahim Erek', groupId: 'A', orderInGroup: 1 },
+      { id: 'noc-2', name: 'Serkan Aydın', groupId: 'A', orderInGroup: 2 },
+      { id: 'noc-3', name: 'Mehmet Demir', groupId: 'B', orderInGroup: 1 },
+      { id: 'noc-4', name: 'Hasan Akpınar', groupId: 'B', orderInGroup: 2 },
+      { id: 'noc-5', name: 'Mustafa Telsiz', groupId: 'C', orderInGroup: 1 },
+      { id: 'noc-6', name: 'Barış Memiş', groupId: 'C', orderInGroup: 2 },
+      { id: 'noc-7', name: 'Hüseyin Yıldız', groupId: 'D', orderInGroup: 1 },
     ],
   },
   {
     id: 'dep-noc-6p',
-    name: 'NOC',
+    name: 'NOC (6 Kişi - Gruplu)',
     shiftModel: 'MEETING_6P',
     modelDescription: '6 Personel • 8-9 Nöbet | Pzt/Per (1. Grup) | Sal/Cum (2. Grup) | Sal/Cmt (1. Kişi) | Çar/Paz (2. Kişi)',
     staff: DEFAULT_NOC_6P_STAFF,
+  },
+  {
+    id: 'dep-noc-6p-ind',
+    name: 'NOC (6 Kişi - Grupsuz)',
+    shiftModel: 'INDIVIDUAL_6P',
+    modelDescription: '6 Personel • Grupsuz (Tek Kişi) • 6 Haftalık Döngü • Haftalık Hesaplama',
+    staff: DEFAULT_NOC_6P_INDIVIDUAL_STAFF,
   },
   {
     id: 'dep-mpls',
@@ -104,6 +123,52 @@ export const DEFAULT_DEPARTMENTS: Department[] = [
 ];
 
 export const ROTATING_GROUPS: GroupId[] = ['A', 'B', 'C', 'D'];
+
+/**
+ * 6 Kişilik Grupsuz (Bireysel / Tek Kişi) Modeli İçin 6 Haftalık Kusursuz Rotasyon Tablosu
+ * Her personel haftada tam 2 nöbet (48 saat) tutar.
+ * 6 haftalık döngüde toplam 12 nöbet (288 saat = 36 gün) tamamlanır.
+ * Ayda 8 - 9 nöbet (192 - 216 saat = 24 - 27 gün) düşer.
+ * KURAL GÜVENCESİ:
+ * - İki nöbet arasında EN AZ 2 veya 3 gün kesintisiz dinlenme (istirahat) bulunur.
+ * - Cumartesi nöbet tutan personel Pazar ve Pazartesi izinli olur; Pazartesi ASLA nöbete gelemez, Salı gelir!
+ * - Pazar nöbet tutan personel Pazartesi ve Salı izinli olur; Çarşamba gelir!
+ */
+export const INDIVIDUAL_6P_WEEKLY_ROLES: number[][] = [
+  [1, 4], // 1. Rol: Pazartesi (1) & Perşembe (4)
+  [1, 4], // 2. Rol: Pazartesi (1) & Perşembe (4)
+  [2, 5], // 3. Rol: Salı (2) & Cuma (5)
+  [3, 0], // 4. Rol: Çarşamba (3) & Pazar (0)
+  [3, 6], // 5. Rol: Çarşamba (3) & Cumartesi (6)  --> Cmt sonrası Paz & Pzt 2 gün tam istirahat, Salı başlar!
+  [2, 5], // 6. Rol: Salı (2) & Cuma (5)
+];
+
+export function getIndividual6pStaffForDay(
+  year: number,
+  month: number,
+  day: number,
+  staffList: StaffMember[]
+): StaffMember[] {
+  if (!staffList || staffList.length === 0) return [];
+  // Referans Pazartesi: 28 Eylül 2026 (Ekim 2026'nın başlangıç haftası)
+  const anchorMon = new Date(2026, 8, 28, 12, 0, 0);
+  const curDate = new Date(year, month, day, 12, 0, 0);
+  const diffDays = Math.round((curDate.getTime() - anchorMon.getTime()) / (1000 * 60 * 60 * 24));
+  const weekNumber = Math.floor(diffDays / 7);
+  const dow = curDate.getDay(); // 0=Pazar, 1=Pazartesi, ..., 6=Cumartesi
+
+  const assigned: StaffMember[] = [];
+  const totalStaff = Math.min(6, staffList.length);
+
+  for (let p = 0; p < totalStaff; p++) {
+    const roleIdx = ((p + (weekNumber % 6)) % 6 + 6) % 6;
+    const roleDays = INDIVIDUAL_6P_WEEKLY_ROLES[roleIdx];
+    if (roleDays.includes(dow)) {
+      assigned.push(staffList[p]);
+    }
+  }
+  return assigned;
+}
 
 /**
  * Sistematik ABC Dişli Çark (Gear) Sistemi:
@@ -191,8 +256,8 @@ export function getGearStartGroup(
 }
 
 /**
- * Her ay personelin adaletli bir şekilde gruplar arasında yer değiştirmesini sağlar.
- * D grubu da dahil olmak üzere tüm personeller her ay adil ve sistematik olarak sırayla döner.
+ * Her ay personelin adaletli bir şekilde gruplar/sıralar arasında yer değiştirmesini sağlar.
+ * Hem 7 kişilik, hem 6 kişilik gruplu, hem de 6 kişilik grupsuz modellerde tüm personeller her ay adil ve sistematik olarak sırayla döner.
  */
 export function getRotatedStaff(
   staffList: StaffMember[], 
@@ -202,22 +267,26 @@ export function getRotatedStaff(
 ): StaffMember[] {
   if (!staffList || staffList.length === 0) return [];
 
-  // 6 Kişilik NOC Modelinde personeller sabit gün ve rollere sahiptir (Pzt/Per 1. Grup, Salı/Cuma 2. Grup, Salı/Cmt ve Çar/Paz 3. Grup).
-  // Bu nedenle personeller aylara göre rotasyona UĞRAMAZ; girilen son isimler ve roller her ay KALICIDIR ve SABİTTİR.
-  const is6Person =
-    shiftModel === 'MEETING_6P' ||
-    (!staffList.some((s) => s.groupId === 'D') && staffList.length <= 6) ||
-    staffList.some((s) => s.id?.startsWith('noc6-'));
+  // 6 Kişilik Grupsuz (Bireysel) Modelde döngü 6 haftalık sürekli zaman çizelgesi üzerinden
+  // kesintisiz işlediği için personellerin sırası sabittir (ay geçişlerinde isim kaydırılmaz).
+  // Böylece ay sonu (31 Ekim) ve ay başı (1 Kasım) üst üste nöbet çakışması %100 engellenir.
+  const isIndividual6p =
+    shiftModel === 'INDIVIDUAL_6P' ||
+    staffList.some((s) => s.id?.startsWith('noc-ind-')) ||
+    staffList.some((s) => s.groupId?.startsWith('P')) ||
+    (staffList.length === 6 && staffList.every((s) => s.roleNote?.includes('Tek Kişi') || s.roleNote?.includes('Bireysel') || s.groupId?.startsWith('P')));
 
-  if (is6Person) {
+  if (isIndividual6p) {
     return [...staffList];
   }
 
-  // Personeli hiyerarşik grup ve sıra düzenine göre sırala
+  // Diğer modellerde (7 Kişilik Standart ve 6 Kişilik Gruplu) personeli hiyerarşik grup ve sıra düzenine göre sırala
   const sortedStaff = [...staffList].sort((a, b) => {
-    const groupOrder = ['A', 'B', 'C', 'D'];
-    if (a.groupId !== b.groupId) {
-      return groupOrder.indexOf(a.groupId) - groupOrder.indexOf(b.groupId);
+    const groupOrder = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'A', 'B', 'C', 'D', 'E', 'F'];
+    const aGrpIdx = groupOrder.indexOf(a.groupId);
+    const bGrpIdx = groupOrder.indexOf(b.groupId);
+    if (aGrpIdx !== -1 && bGrpIdx !== -1 && aGrpIdx !== bGrpIdx) {
+      return aGrpIdx - bGrpIdx;
     }
     return (a.orderInGroup || 0) - (b.orderInGroup || 0);
   });
@@ -582,6 +651,12 @@ export function generateMonthSchedule(
   const availableGroupIds = staffList.map(s => s.groupId).filter((value, index, self) => self.indexOf(value) === index);
   const hasGroupD = availableGroupIds.includes('D');
 
+  // 6 Kişilik Grupsuz (Tek Kişi / Bireysel) Modeli Kontrolü
+  const isIndividual6p =
+    staffList.some((s) => s.id?.startsWith('noc-ind-')) ||
+    staffList.some((s) => s.groupId?.startsWith('P')) ||
+    (staffList.length === 6 && !hasGroupD && staffList.every((s) => s.roleNote?.includes('Tek Kişi') || s.groupId.startsWith('P')));
+
   // D Grubu her zaman Çarşamba ve Pazar çalışır. A,B,C grupları diğer günleri döndürür.
   // 6 Kişilik modelde ise hafta içi A ve B grupları döner, Cmt ve Paz sabit 3. Grup (C) tek kişi tutar.
   const baseOrder: GroupId[] = hasGroupD ? ['A', 'B', 'C'] : ['A', 'B'];
@@ -613,6 +688,9 @@ export function generateMonthSchedule(
             const dStaff = getDutyStaffForDay(oG, staffList, dow, hasGroupD);
             dStaff.forEach(s => { candidateDuties[s.id]++; });
             if (hasGroupD ? dow !== 0 : (dow >= 1 && dow <= 5)) cWeekday++;
+          } else if (isIndividual6p) {
+            const indStaff = getIndividual6pStaffForDay(year, month, d, staffList);
+            indStaff.forEach(s => { candidateDuties[s.id]++; });
           } else if (!hasGroupD) {
             const cStaff1 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('salı') || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi')));
             const cStaff2 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('çarşamba') || s.roleNote?.toLowerCase().includes('pazar')));
@@ -699,8 +777,16 @@ export function generateMonthSchedule(
       if (hasGroupD ? dayOfWeek !== 0 : (dayOfWeek >= 1 && dayOfWeek <= 5)) {
         weekdayCount++;
       }
+    } else if (isIndividual6p) {
+      // === 6 KİŞİLİK GRUPSUZ (TEK KİŞİ / 6 HAFTALIK DÖNGÜ) MODELİ ===
+      // 1. Badi veya sabit eşleşme yok; herkes 6 haftalık döngüde rotasyona girer.
+      // 2. 6 haftada bir (42 günde) döngü tam olarak başa döner.
+      // 3. Her personel haftada tam 2 nöbet (48 saat), ayda 8-9 nöbet (192-216 saat) tutar.
+      // 4. İki nöbet arasında kesintisiz istirahat güvence altındadır.
+      dutyStaff = getIndividual6pStaffForDay(year, month, day, staffList);
+      dutyGroupId = dutyStaff[0]?.groupId || 'P1';
     } else if (!hasGroupD) {
-      // === 6 KİŞİLİK MODEL (Tam 8-9 Nöbet ve Kesintisiz 48-72 Saat Dinlenme) ===
+      // === 6 KİŞİLİK GRUPLU TOPLANTI MODELİ ===
       // 1. Grup (A): Pazartesi ve Perşembe (Ayda 8-9 nöbet)
       // 2. Grup (B): Salı ve Cuma (Ayda 8-9 nöbet)
       // 3. Grup 1. Kişi (Hasan Çelik): Salı ve Cumartesi (Ayda 8-9 nöbet, Cmt tek kişi)
@@ -949,6 +1035,76 @@ export function generateMonthSchedule(
     };
   });
 
+  // 4. AŞAMA: HAFTALIK HESAPLAMALAR VE HAFTA HAFTA NÖBET DÖKÜMÜ (1. Hafta, 2. Hafta, ...)
+  const monthName = TURKISH_MONTHS[month];
+  const weeklyStats: MonthSummary['weeklyStats'] = [];
+
+  const weekRanges: { weekNumber: number; startDay: number; endDay: number }[] = [
+    { weekNumber: 1, startDay: 1, endDay: Math.min(7, totalDays) },
+    { weekNumber: 2, startDay: 8, endDay: Math.min(14, totalDays) },
+    { weekNumber: 3, startDay: 15, endDay: Math.min(21, totalDays) },
+    { weekNumber: 4, startDay: 22, endDay: Math.min(28, totalDays) },
+  ];
+
+  if (totalDays > 28) {
+    weekRanges.push({
+      weekNumber: 5,
+      startDay: 29,
+      endDay: totalDays,
+    });
+  }
+
+  weekRanges.forEach((wr) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const startDateStr = `${year}-${pad(month + 1)}-${pad(wr.startDay)}`;
+    const endDateStr = `${year}-${pad(month + 1)}-${pad(wr.endDay)}`;
+    const weekLabel = `${wr.weekNumber}. Hafta (${wr.startDay} - ${wr.endDay} ${monthName})`;
+
+    const staffWeeklyDuties: Record<string, {
+      dutiesCount: number;
+      dutyDays: number[];
+      totalHours: number;
+      equivalentDays: number;
+      isDoubleDutyWeek: boolean;
+    }> = {};
+
+    staffList.forEach((st) => {
+      staffWeeklyDuties[st.id] = {
+        dutiesCount: 0,
+        dutyDays: [],
+        totalHours: 0,
+        equivalentDays: 0,
+        isDoubleDutyWeek: false,
+      };
+    });
+
+    for (let d = wr.startDay; d <= wr.endDay; d++) {
+      const shift = shifts[d - 1];
+      if (shift) {
+        const assigned = [...(shift.dutyStaff || []), ...(shift.supportStaff || [])];
+        assigned.forEach((st) => {
+          if (staffWeeklyDuties[st.id]) {
+            staffWeeklyDuties[st.id].dutiesCount++;
+            staffWeeklyDuties[st.id].dutyDays.push(d);
+            staffWeeklyDuties[st.id].totalHours = staffWeeklyDuties[st.id].dutiesCount * 24;
+            staffWeeklyDuties[st.id].equivalentDays = staffWeeklyDuties[st.id].dutiesCount * 3;
+            staffWeeklyDuties[st.id].isDoubleDutyWeek = staffWeeklyDuties[st.id].dutiesCount >= 2;
+          }
+        });
+      }
+    }
+
+    weeklyStats.push({
+      weekNumber: wr.weekNumber,
+      weekLabel,
+      startDay: wr.startDay,
+      endDay: wr.endDay,
+      startDateStr,
+      endDateStr,
+      staffWeeklyDuties,
+    });
+  });
+
   const validationWarnings = validateMonthSchedule(shifts, staffStats, staffList, hasGroupD);
   const auditReport = generateAgentAuditReport(year, month, shifts, staffStats, staffList, targetWorkingDays);
 
@@ -960,6 +1116,14 @@ export function generateMonthSchedule(
     shifts,
     staffStats,
     staffList, 
+    weeklyStats,
+    cycleInfo: {
+      cycleLengthWeeks: 6,
+      cycleTotalDays: 42,
+      shiftsPerPersonInCycle: isIndividual6p ? 12 : 7,
+      hoursPerPersonInCycle: isIndividual6p ? 288 : 168,
+      cycleCompletionRate: Math.min(100, Math.round((totalDays / 42) * 100)),
+    },
     autoCompensated: enableAutoCompensate,
     compensatedShiftsCount,
     validationWarnings,

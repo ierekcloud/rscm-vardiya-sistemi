@@ -32,8 +32,7 @@ interface DepartmentPortalProps {
 const DEPT_META: Record<string, { icon: React.ReactNode; subtitle: string; tag?: string }> = {
   'dep-noc': {
     icon: <Network className="w-6 h-6 text-indigo-600" />,
-    subtitle: 'NOC Vardiya & Operasyon Merkezi',
-    tag: 'Pilot Birim • Canlı'
+    subtitle: '',
   },
   'dep-mpls': {
     icon: <Server className="w-6 h-6 text-sky-600" />,
@@ -134,7 +133,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
         {/* Birim Kartları Izgarası */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {departments
-            .filter((dept) => dept.id !== 'dep-noc-6p')
+            .filter((dept) => dept.id !== 'dep-noc-6p' && dept.id !== 'dep-noc-6p-ind')
             .map((dept) => {
               const meta = DEPT_META[dept.id] || {
                 icon: <Server className="w-5 h-5 text-slate-700" />,
@@ -179,21 +178,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                     )}
                   </div>
 
-                  {isNoc ? (
-                    <span 
-                      className="text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 bg-emerald-100 border border-emerald-300 text-emerald-950 shadow-2xs"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                      Pilot Birim • Canlı
-                    </span>
-                  ) : isSuperAdmin ? (
-                    <span 
-                      className="text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 bg-slate-100 border border-slate-300 text-slate-800 shadow-2xs"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-                      Aktif
-                    </span>
-                  ) : (
+                  {!isAccessible && (
                     <span 
                       className="w-7 h-7 rounded-full bg-slate-200/90 border border-slate-300 text-slate-700 flex items-center justify-center shadow-xs"
                       title="Erişime Kapalı"
@@ -211,7 +196,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                   >
                     <span className="flex items-center gap-2">
                       {!isAccessible && <KeyRound className="w-4 h-4 text-slate-600 shrink-0" />}
-                      <span>{dept.name}</span>
+                      <span>{dept.id.startsWith('dep-noc') ? 'NOC' : dept.name}</span>
                     </span>
                     {isAccessible && (
                       <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-1.5 group-hover:translate-x-0 transition-all text-indigo-600" />

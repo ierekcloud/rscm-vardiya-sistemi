@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Department, GroupId, GROUPS_CONFIG, MonthSummary, StaffMember } from '../types';
+import { Department, GroupId, GROUPS_CONFIG, getGroupConfig, MonthSummary, StaffMember } from '../types';
 import {
   Users,
   ChevronDown,
@@ -99,9 +99,14 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
     }
   };
 
+  const isUngrouped6p = department.shiftModel === 'INDIVIDUAL_6P' || department.id === 'dep-noc-6p-ind' || department.staff.some((s) => s.groupId?.startsWith('P'));
   const is6PersonModel = department.id === 'dep-noc-6p';
   const hasGroupD = department.staff.some((s) => s.groupId === 'D');
-  const groupKeys: GroupId[] = hasGroupD ? ['A', 'B', 'C', 'D'] : ['A', 'B', 'C'];
+  const groupKeys: GroupId[] = isUngrouped6p
+    ? (Array.from(new Set(department.staff.map((s) => s.groupId))) as GroupId[])
+    : hasGroupD
+    ? ['A', 'B', 'C', 'D']
+    : ['A', 'B', 'C'];
 
   return (
     <aside
@@ -248,10 +253,10 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
       {/* ALT ALTA AÇILAN GRUP BUTONLARI (Dikey Akordiyon) */}
       <div className="p-3 space-y-2.5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
         {groupKeys.map((grp) => {
-          const cfg = GROUPS_CONFIG[grp];
-          const isOpen = openGroups[grp];
-          // Use summary.staffList if available (which contains rotated staff), otherwise fallback to department.staff
-          const staffSource = summary?.staffList || department.staff;
+          const cfg = getGroupConfig(grp);
+          const isOpen = openGroups[grp as GroupId] ?? true;
+          // Düzenleme modundayken doğrudan ana kadro düzenlenir; görüntüleme modunda aylık rotasyonlu liste gösterilir
+          const staffSource = isEditing ? department.staff : (summary?.staffList || department.staff);
           const allGroupStaff = staffSource.filter((s) => s.groupId === grp);
           const filteredStaff = allGroupStaff.filter((s) =>
             s.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -273,7 +278,7 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
               {/* Grup Açılır / Kapanır Dikey Buton */}
               <button
                 type="button"
-                onClick={() => toggleGroup(grp)}
+                onClick={() => toggleGroup(grp as GroupId)}
                 className={`w-full p-3 flex items-center justify-between text-left transition-colors cursor-pointer select-none ${
                   isDark
                     ? 'hover:bg-slate-800/80 bg-slate-900/90'
@@ -290,11 +295,17 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                         isDark ? 'text-white' : 'text-slate-900'
                       }`}
                     >
-                      {is6PersonModel
+                      {isUngrouped6p
+                        ? cfg.name
+                        : is6PersonModel
                         ? (grp === 'A' ? '1. Grup (A)' : grp === 'B' ? '2. Grup (B)' : '3. Grup (C)')
                         : cfg.name}
                     </span>
-                    {is6PersonModel ? (
+                    {isUngrouped6p ? (
+                      <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold block leading-tight">
+                        6 Haftalık Tekil Döngü (Tek Kişi)
+                      </span>
+                    ) : is6PersonModel ? (
                       <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold block leading-tight">
                         {grp === 'A' && 'Pazartesi & Perşembe'}
                         {grp === 'B' && 'Salı & Cuma'}
@@ -359,6 +370,7 @@ export const PersonnelSidebar: React.FC<PersonnelSidebarProps> = ({
                               <input
                                 type="text"
                                 value={staff.name}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => onUpdateStaffName(staff.id, e.target.value)}
                                 placeholder="Personel Adı"
                                 className={`w-full text-xs px-2.5 py-1.5 rounded-lg border font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 ${

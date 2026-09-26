@@ -85,7 +85,7 @@ export const PrintSheet: React.FC<PrintSheetProps> = ({
                   {st.name}
                 </td>
                 <td className="border border-black p-1 text-center font-bold">
-                  Grup {st.groupId}
+                  {st.groupId.startsWith('P') ? st.groupId : `Grup ${st.groupId}`}
                 </td>
                 {summary.shifts.map((s) => {
                   const isDuty = s.dutyStaff.some((member) => member.id === st.id);

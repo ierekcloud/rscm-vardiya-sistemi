@@ -30,6 +30,9 @@ import { DepartmentPortal } from './components/DepartmentPortal';
 import { ManagerLoginModal } from './components/ManagerLoginModal';
 import { AgentAuditModal } from './components/AgentAuditModal';
 import { StaffAuditModal } from './components/StaffAuditModal';
+import { WeekendEquityAuditModal } from './components/WeekendEquityAuditModal';
+import { ScheduleHealthCheckModal } from './components/ScheduleHealthCheckModal';
+import { ShiftSwapModal } from './components/ShiftSwapModal';
 import { LeaveManagementModal } from './components/LeaveManagementModal';
 import { StaffManagerModal } from './components/StaffManagerModal';
 import { ShareAccessModal } from './components/ShareAccessModal';
@@ -74,20 +77,22 @@ import {
   KeyRound,
   Timer,
   Share2,
+  MessageCircle,
   Eye,
+  Save,
 } from 'lucide-react';
 
-const STORAGE_KEY_DEPTS_V4 = 'vardiya_telekom_depts_v4';
-const STORAGE_KEY_ACTIVE_DEPT_V4 = 'vardiya_telekom_active_dept_v4';
-const STORAGE_KEY_BALANCES_V4 = 'vardiya_telekom_balances_history_v4';
+const STORAGE_KEY_DEPTS_V4 = 'vardiya_telekom_depts_v7';
+const STORAGE_KEY_ACTIVE_DEPT_V4 = 'vardiya_telekom_active_dept_v7';
+const STORAGE_KEY_BALANCES_V4 = 'vardiya_telekom_balances_history_v7';
 const STORAGE_KEY_THEME_V4 = 'vardiya_theme_mode';
-const STORAGE_KEY_OVERRIDES_V4 = 'vardiya_telekom_overrides_v4';
+const STORAGE_KEY_OVERRIDES_V4 = 'vardiya_telekom_overrides_v7';
 const STORAGE_KEY_PORTAL_OPEN_V4 = 'vardiya_portal_open_state_v4';
 const STORAGE_KEY_SELECTED_MONTH_V4 = 'vardiya_selected_month_v4';
 const STORAGE_KEY_SELECTED_YEAR_V4 = 'vardiya_selected_year_v4';
 const STORAGE_KEY_LEAVES_V4 = 'vardiya_telekom_leaves_v4';
 // 6 Kişilik model için son girilen isimleri daima koruyan kalıcı anahtar
-const STORAGE_KEY_NOC_6P_STAFF_PERMANENT = 'rsmc_noc_6p_permanent_staff_v1';
+const STORAGE_KEY_NOC_6P_STAFF_PERMANENT = 'rsmc_noc_6p_permanent_staff_v3';
 
 export default function App() {
   // Tema Tercihi (Varsayılan: Göz yormayan, ferah ve yumuşak Açık Mod)
@@ -150,27 +155,34 @@ export default function App() {
             }
           }
         }
-        // Eğer 6 kişilik kadro için son girilmiş kalıcı isimler varsa bunu koru
-        if (permanent6pStaff && permanent6pStaff.length > 0) {
-          return parsed.map((d) => {
-            if (d.id === 'dep-noc-6p') {
-              return { ...d, staff: permanent6pStaff! };
+        const hasNoc6pInd = parsed.some(d => d.id === 'dep-noc-6p-ind');
+        if (!hasNoc6pInd) {
+          const default6pInd = DEFAULT_DEPARTMENTS.find(d => d.id === 'dep-noc-6p-ind');
+          if (default6pInd) {
+            const noc6pIdx = parsed.findIndex(d => d.id === 'dep-noc-6p');
+            if (noc6pIdx !== -1) {
+              parsed.splice(noc6pIdx + 1, 0, default6pInd);
+            } else {
+              parsed.unshift(default6pInd);
             }
-            return d;
-          });
-        }
-        return parsed;
-      }
-
-      // LocalStorage'da departman yoksa fakat kalıcı 6 kişilik isimler varsa
-      if (permanent6pStaff && permanent6pStaff.length > 0) {
-        return DEFAULT_DEPARTMENTS.map((d) => {
-          if (d.id === 'dep-noc-6p') {
-            return { ...d, staff: permanent6pStaff! };
           }
-          return d;
+        }
+        // Kullanıcının eklediği ve düzenlediği personelleri koru, ASLA varsayılan ile ezme!
+        return parsed.map((d) => {
+          const cleanName = d.id === 'dep-noc' ? 'NOC' : d.name;
+          if (d.staff && d.staff.length > 0) {
+            return { ...d, name: cleanName };
+          }
+          const def = DEFAULT_DEPARTMENTS.find((dd) => dd.id === d.id);
+          if (def) {
+            return { ...d, name: cleanName, staff: def.staff };
+          }
+          return { ...d, name: cleanName };
         });
       }
+
+      // LocalStorage'da departman yoksa varsayılanı kullan
+      return DEFAULT_DEPARTMENTS;
     } catch (e) {
       console.error(e);
     }
@@ -335,10 +347,19 @@ export default function App() {
   const [overrideModalShift, setOverrideModalShift] = useState<DayShift | null>(null);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState<boolean>(false);
   const [isStaffAuditModalOpen, setIsStaffAuditModalOpen] = useState<boolean>(false);
+  const [isWeekendEquityModalOpen, setIsWeekendEquityModalOpen] = useState<boolean>(false);
+  const [isHealthCheckModalOpen, setIsHealthCheckModalOpen] = useState<boolean>(false);
+  const [isSwapModalOpen, setIsSwapModalOpen] = useState<boolean>(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
   const [isStaffManagerModalOpen, setIsStaffManagerModalOpen] = useState<boolean>(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
   const [pendingActionAfterLogin, setPendingActionAfterLogin] = useState<string | null>(null);
+
+  // Manuel & Otomatik Kayıt Durumu Kontrolleri
+  const [lastSavedTime, setLastSavedTime] = useState<Date>(() => new Date());
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [justSaved, setJustSaved] = useState<boolean>(false);
+  const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
 
   // Personel İzin / Rapor Kayıtları (Ay ve Birim bazlı kalıcı saklama)
   const STORAGE_KEY_LEAVES_V4 = 'vardiya_telekom_leaves_v4';
@@ -357,6 +378,49 @@ export default function App() {
   const isScheduleGenerated = true;
   const [isWarningsOpen, setIsWarningsOpen] = useState<boolean>(true);
 
+  // Değişiklikleri Manuel Kaydetme Fonksiyonu
+  const handleManualSave = () => {
+    setIsSaving(true);
+    try {
+      localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(departments));
+      localStorage.setItem(STORAGE_KEY_ACTIVE_DEPT_V4, activeDeptId);
+      localStorage.setItem(STORAGE_KEY_BALANCES_V4, JSON.stringify(balancesHistory));
+      localStorage.setItem(STORAGE_KEY_LEAVES_V4, JSON.stringify(leavesByMonth));
+      localStorage.setItem(STORAGE_KEY_OVERRIDES_V4, JSON.stringify(overridesMap));
+      localStorage.setItem(STORAGE_KEY_SELECTED_MONTH_V4, String(selectedMonth));
+      localStorage.setItem(STORAGE_KEY_SELECTED_YEAR_V4, String(selectedYear));
+
+      // 6 Kişilik model personellerini özel kalıcı anahtara da kaydet
+      const noc6p = departments.find((d) => d.id === 'dep-noc-6p');
+      if (noc6p && noc6p.staff && noc6p.staff.length > 0) {
+        localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(noc6p.staff));
+      }
+
+      const now = new Date();
+      setLastSavedTime(now);
+
+      setTimeout(() => {
+        setIsSaving(false);
+        setJustSaved(true);
+        const timeStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setSaveSuccessNotice(`✓ Tüm değişiklikler başarıyla kaydedildi (${timeStr}). Vardiya planı, personel listeleri, izinler ve takaslar güvence altında.`);
+
+        setTimeout(() => {
+          setJustSaved(false);
+        }, 3500);
+
+        setTimeout(() => {
+          setSaveSuccessNotice(null);
+        }, 4500);
+      }, 300);
+    } catch (err) {
+      console.error(err);
+      setIsSaving(false);
+      setSaveSuccessNotice('Kayıt sırasında bir hata oluştu.');
+      setTimeout(() => setSaveSuccessNotice(null), 3000);
+    }
+  };
+
   const handleGenerateSchedule = () => {
     if (!isAdmin) {
       setPendingActionAfterLogin('generate_schedule');
@@ -369,23 +433,25 @@ export default function App() {
     setTimeout(() => setCarryoverSuccess(null), 3500);
   };
 
-  // LocalStorage senkronizasyonu
+  // LocalStorage otomatik senkronizasyonu
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(departments));
       localStorage.setItem(STORAGE_KEY_ACTIVE_DEPT_V4, activeDeptId);
       localStorage.setItem(STORAGE_KEY_BALANCES_V4, JSON.stringify(balancesHistory));
       localStorage.setItem(STORAGE_KEY_LEAVES_V4, JSON.stringify(leavesByMonth));
+      localStorage.setItem(STORAGE_KEY_OVERRIDES_V4, JSON.stringify(overridesMap));
 
       // 6 Kişilik model personellerini özel kalıcı anahtara da her zaman kaydet
       const noc6p = departments.find((d) => d.id === 'dep-noc-6p');
       if (noc6p && noc6p.staff && noc6p.staff.length > 0) {
         localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(noc6p.staff));
       }
+      setLastSavedTime(new Date());
     } catch (e) {
       console.error(e);
     }
-  }, [departments, activeDeptId, balancesHistory, leavesByMonth]);
+  }, [departments, activeDeptId, balancesHistory, leavesByMonth, overridesMap]);
 
   // Aktif Departman
   const activeDepartment = useMemo(() => {
@@ -596,11 +662,12 @@ export default function App() {
     ) {
       return true;
     }
-    // NOC için hem standart 7 kişilik (dep-noc) hem de 6 kişilik toplantı modeli (dep-noc-6p) NOC yöneticisine (Dilek) aittir
-    if (activeDepartment.id === 'dep-noc' || activeDepartment.id === 'dep-noc-6p') {
+    // NOC için hem standart 7 kişilik (dep-noc) hem 6 kişilik gruplu (dep-noc-6p) hem de 6 kişilik grupsuz modeli (dep-noc-6p-ind) NOC yöneticisine aittir
+    if (activeDepartment.id === 'dep-noc' || activeDepartment.id === 'dep-noc-6p' || activeDepartment.id === 'dep-noc-6p-ind') {
       return (
         currentManager.departmentId === 'dep-noc' ||
         currentManager.departmentId === 'dep-noc-6p' ||
+        currentManager.departmentId === 'dep-noc-6p-ind' ||
         currentManager.departmentName?.toUpperCase() === 'NOC'
       );
     }
@@ -687,38 +754,34 @@ export default function App() {
       setIsLoginModalOpen(true);
       return;
     }
-    const cleanName = newName.trim();
-    if (!cleanName) return;
 
     setDepartments((prevDepts) => {
       const updated = prevDepts.map((d) => {
         if (d.id !== activeDepartment.id) return d;
         const updatedStaff = d.staff.map((s) => {
           if (s.id === staffId) {
-            return { ...s, name: cleanName };
+            return { ...s, name: newName };
           }
           return s;
         });
         return { ...d, staff: updatedStaff };
       });
 
-      // 6 Kişilik model ise kalıcı depolamaya da anında yaz
-      if (activeDepartment.id === 'dep-noc-6p') {
-        const noc6p = updated.find((d) => d.id === 'dep-noc-6p');
-        if (noc6p && noc6p.staff) {
-          try {
-            localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(noc6p.staff));
-          } catch (e) {
-            console.error(e);
+      // 6 Kişilik ve diğer modelleri kalıcı depolamaya anında yaz
+      const currentActive = updated.find((d) => d.id === activeDepartment.id);
+      if (currentActive && currentActive.staff) {
+        try {
+          if (activeDepartment.id === 'dep-noc-6p') {
+            localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(currentActive.staff));
           }
+          localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(updated));
+        } catch (e) {
+          console.error(e);
         }
       }
 
       return updated;
     });
-
-    setCarryoverSuccess(`"${cleanName}" ismi güncellendi ve kalıcı olarak kaydedildi.`);
-    setTimeout(() => setCarryoverSuccess(null), 3000);
   };
 
   // Yeni Personel Ekle (Gruba Personel Ekleme)
@@ -731,7 +794,7 @@ export default function App() {
     if (!cleanName) return;
 
     setDepartments((prevDepts) => {
-      return prevDepts.map((d) => {
+      const updated = prevDepts.map((d) => {
         if (d.id !== activeDepartment.id) return d;
         const groupCount = d.staff.filter((s) => s.groupId === groupId).length;
         const newStaff: StaffMember = {
@@ -745,6 +808,16 @@ export default function App() {
           staff: [...d.staff, newStaff],
         };
       });
+      try {
+        localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(updated));
+        if (activeDepartment.id === 'dep-noc-6p') {
+          const noc = updated.find((d) => d.id === 'dep-noc-6p');
+          if (noc?.staff) localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(noc.staff));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
     });
 
     setCarryoverSuccess(`Yeni personel "${cleanName}", ${GROUPS_CONFIG[groupId].name} grubuna eklendi.`);
@@ -761,7 +834,7 @@ export default function App() {
     const staffName = staffToDelete ? staffToDelete.name : 'Personel';
 
     setDepartments((prevDepts) => {
-      return prevDepts.map((d) => {
+      const updated = prevDepts.map((d) => {
         if (d.id !== activeDepartment.id) return d;
         const filteredStaff = d.staff.filter((s) => s.id !== staffId);
         // Gruba göre sıralamaları yeniden düzenle
@@ -775,6 +848,16 @@ export default function App() {
         });
         return { ...d, staff: reindexed };
       });
+      try {
+        localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(updated));
+        if (activeDepartment.id === 'dep-noc-6p') {
+          const noc = updated.find((d) => d.id === 'dep-noc-6p');
+          if (noc?.staff) localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(noc.staff));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
     });
 
     setCarryoverSuccess(`"${staffName}" kadrodan çıkarıldı.`);
@@ -788,7 +871,7 @@ export default function App() {
       return;
     }
     setDepartments((prevDepts) => {
-      return prevDepts.map((d) => {
+      const updated = prevDepts.map((d) => {
         if (d.id !== activeDepartment.id) return d;
         const targetStaff = d.staff.find((s) => s.id === staffId);
         if (!targetStaff || targetStaff.groupId === newGroupId) return d;
@@ -806,6 +889,12 @@ export default function App() {
         });
         return { ...d, staff: updatedStaff };
       });
+      try {
+        localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
     });
   };
 
@@ -822,13 +911,13 @@ export default function App() {
         return { ...d, staff: newStaffList };
       });
 
-      // 6 Kişilik model ise kalıcı depolamaya da anında yaz
-      if (activeDepartment.id === 'dep-noc-6p') {
-        try {
+      try {
+        localStorage.setItem(STORAGE_KEY_DEPTS_V4, JSON.stringify(updated));
+        if (activeDepartment.id === 'dep-noc-6p') {
           localStorage.setItem(STORAGE_KEY_NOC_6P_STAFF_PERMANENT, JSON.stringify(newStaffList));
-        } catch (e) {
-          console.error(e);
         }
+      } catch (e) {
+        console.error(e);
       }
 
       return updated;
@@ -897,6 +986,34 @@ export default function App() {
       }
       return updated;
     });
+  };
+
+  // Nöbet Takası & Becayiş Uygula (Dilek Hanım / Yönetici Onaylı)
+  const handleApplySwap = (day1: number, staff1: StaffMember, day2: number, staff2: StaffMember) => {
+    if (!isAdmin) {
+      setCarryoverSuccess('Nöbet takasını onaylama ve çizelgeye işleme yetkisi yalnızca yöneticidedir (Dilek Hanım). Lütfen yönetici girişi yapınız.');
+      setIsLoginModalOpen(true);
+      return;
+    }
+    setOverridesMap((prev) => {
+      const cur = prev[currentScheduleKey] || {};
+      const updated = {
+        ...prev,
+        [currentScheduleKey]: {
+          ...cur,
+          [day1]: staff2.groupId,
+          [day2]: staff1.groupId,
+        },
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY_OVERRIDES_V4, JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+    setCarryoverSuccess(`✓ ${staff1.name} (${day1} ${TURKISH_MONTHS[selectedMonth]}) ile ${staff2.name} (${day2} ${TURKISH_MONTHS[selectedMonth]}) nöbet takası onaylandı ve çizelgeye işlendi.`);
+    setTimeout(() => setCarryoverSuccess(null), 5000);
   };
 
   // Manuel Devir Bakiyesi Güncelleme (Yönetici Kontrollü)
@@ -1097,6 +1214,40 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* 💾 DEĞİŞİKLİKLERİ KAYDET BUTONU (BİRİM SEÇİMİNDEN SONRA GÖRÜNÜR, ANA EKRANDAN KALDIRILDI) */}
+                {!isPortalOpen && (
+                  <button
+                    type="button"
+                    id="btn-save-changes-header"
+                    onClick={handleManualSave}
+                    disabled={isSaving}
+                    className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-black rounded-full border transition-all cursor-pointer shadow-md hover:-translate-y-0.5 active:scale-95 shrink-0 ${
+                      justSaved
+                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-500/30'
+                        : isDarkMode
+                        ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 border-indigo-400/40 text-white shadow-indigo-950/40'
+                        : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 border-indigo-600 text-white shadow-indigo-600/25'
+                    }`}
+                    title="Tüm vardiya çizelgesini, personel düzenlemelerini, nöbet takaslarını ve izinleri anında tarayıcıya kaydeder."
+                  >
+                    {isSaving ? (
+                      <RotateCcw className="w-3.5 h-3.5 animate-spin text-white" />
+                    ) : justSaved ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5 text-white" />
+                    )}
+                    <span className="tracking-wide">
+                      {isSaving ? 'Kaydediliyor...' : justSaved ? 'Kaydedildi!' : 'Değişiklikleri Kaydet'}
+                    </span>
+                    {lastSavedTime && !isSaving && !justSaved && (
+                      <span className="hidden xl:inline text-[10px] opacity-80 font-mono font-normal pl-1.5 border-l border-white/25">
+                        {lastSavedTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </button>
+                )}
+
                 {/* DARK / LIGHT TEMA GEÇİŞ BUTONU */}
                 <button
                   type="button"
@@ -1217,6 +1368,18 @@ export default function App() {
           </div>
         </header>
 
+        {/* Canlı Kayıt Başarı Bildirimi (Floating Toast) */}
+        {saveSuccessNotice && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-none max-w-lg w-[92vw]">
+            <div className="px-4 py-3 rounded-2xl bg-emerald-600/95 backdrop-blur-md text-white font-bold text-xs sm:text-sm shadow-2xl shadow-emerald-950/50 flex items-center gap-3 border border-emerald-400">
+              <div className="p-1.5 bg-white/20 rounded-xl shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-white stroke-[2.5]" />
+              </div>
+              <span className="leading-snug">{saveSuccessNotice}</span>
+            </div>
+          </div>
+        )}
+
       {/* EĞER PORTAL AÇIKSA BİRİM SEÇİM EKRANINI GÖSTER */}
         {isPortalOpen ? (
           <DepartmentPortal
@@ -1263,14 +1426,19 @@ export default function App() {
                         <CalendarIcon className="w-4 h-4" />
                       </div>
                       <div>
-                        <h2 className="text-[10px] font-black tracking-widest uppercase text-slate-400">İŞLEM MERKEZİ</h2>
+                        <h2
+                          style={{ color: isDarkMode ? '#FFFFFF' : '#000000', fontWeight: 900 }}
+                          className="text-xs font-black tracking-wider uppercase"
+                        >
+                          İŞLEM MERKEZİ
+                        </h2>
                         <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-black text-slate-800 dark:text-white truncate max-w-[140px]">{activeDepartment.name}</p>
-                          {(activeDepartment.id === 'dep-noc' || activeDepartment.id === 'dep-noc-6p') && (
-                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
-                              PİLOT BİRİM
-                            </span>
-                          )}
+                          <p
+                            style={{ color: isDarkMode ? '#FFFFFF' : '#000000', fontWeight: 900 }}
+                            className="text-xs font-black truncate max-w-[140px]"
+                          >
+                            {activeDepartment.name}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1279,60 +1447,81 @@ export default function App() {
                     </span>
                   </div>
 
-                  {/* NOC Modeli Değiştirici (Mevcut 7 Kişilik Standart vs 6 Kişilik Yeni Toplantı Modeli) */}
-                  {(activeDepartment.id === 'dep-noc' || activeDepartment.id === 'dep-noc-6p') && (
-                    <div className="p-3 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/40 space-y-2">
-                      <div className="flex items-center justify-between text-[10px] font-black uppercase text-indigo-800 dark:text-indigo-300">
-                        <span>NOC Vardiya Modeli</span>
-                        <span className="text-[9px] bg-indigo-200 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200 px-2 py-0.5 rounded-full font-black">
-                          {activeDepartment.id === 'dep-noc-6p' ? '6 Kişi' : '7 Kişi'}
+                  {/* NOC Modeli Değiştirici (7 Kişilik Standart vs 6 Kişilik Gruplu vs 6 Kişilik Grupsuz) */}
+                  {(activeDepartment.id === 'dep-noc' || activeDepartment.id === 'dep-noc-6p' || activeDepartment.id === 'dep-noc-6p-ind') && (
+                    <div className="p-3.5 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/40 space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200">
+                          NOC Vardiya Modeli
+                        </span>
+                        <span className="text-[10px] bg-indigo-200/80 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200 px-2.5 py-0.5 rounded-full font-black border border-indigo-300 dark:border-indigo-800">
+                          {activeDepartment.id === 'dep-noc-6p-ind' ? '6 Kişi (Grupsuz)' : activeDepartment.id === 'dep-noc-6p' ? '6 Kişi (Gruplu)' : '7 Kişi (4 Grup)'}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-1.5 bg-white/90 dark:bg-slate-900/90 p-1 rounded-xl border border-indigo-100 dark:border-indigo-900/40 shadow-xs">
+                      <div className="grid grid-cols-3 gap-1.5 bg-white/90 dark:bg-slate-900/90 p-1.5 rounded-xl border border-indigo-100 dark:border-indigo-900/40 shadow-xs">
                         <button
                           type="button"
                           onClick={() => {
                             setActiveDeptId('dep-noc');
                           }}
-                          className={`py-2 px-2 rounded-lg text-[11px] font-black transition-all cursor-pointer text-center ${
+                          className={`py-2 px-1 rounded-lg text-xs font-black transition-all cursor-pointer text-center ${
                             activeDepartment.id === 'dep-noc'
-                              ? 'bg-indigo-600 text-white shadow-xs'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              ? 'bg-indigo-600 text-white shadow-md ring-1 ring-indigo-400/50'
+                              : 'bg-transparent text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-white hover:bg-indigo-50/50 dark:hover:bg-slate-800/60'
                           }`}
                           title="7 Kişilik Standart 4 Grup Modeli (D Grubu Çar/Paz)"
                         >
-                          7 Kişi (4 Grup)
+                          7 Kişi
                         </button>
                         <button
                           type="button"
                           onClick={() => {
                             setActiveDeptId('dep-noc-6p');
                           }}
-                          className={`py-2 px-2 rounded-lg text-[11px] font-black transition-all cursor-pointer text-center ${
+                          className={`py-2 px-1 rounded-lg text-xs font-black transition-all cursor-pointer text-center ${
                             activeDepartment.id === 'dep-noc-6p'
-                              ? 'bg-indigo-600 text-white shadow-xs'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              ? 'bg-indigo-600 text-white shadow-md ring-1 ring-indigo-400/50'
+                              : 'bg-transparent text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-white hover:bg-indigo-50/50 dark:hover:bg-slate-800/60'
                           }`}
-                          title="6 Kişilik Model (8-9 Nöbet | Pzt/Per 1.Grup, Sal/Cum 2.Grup, Sal/Cmt 1.Kişi, Çar/Paz 2.Kişi)"
+                          title="6 Kişilik Gruplu Model (3 Grup A, B, C)"
                         >
-                          6 Kişi (3 Grup)
+                          6 Kişi (Gruplu)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveDeptId('dep-noc-6p-ind');
+                          }}
+                          className={`py-2 px-1 rounded-lg text-xs font-black transition-all cursor-pointer text-center ${
+                            activeDepartment.id === 'dep-noc-6p-ind'
+                              ? 'bg-indigo-600 text-white shadow-md ring-1 ring-indigo-400/50'
+                              : 'bg-transparent text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-white hover:bg-indigo-50/50 dark:hover:bg-slate-800/60'
+                          }`}
+                          title="6 Kişilik Grupsuz Model (Tek Kişi • 6 Haftalık Tekil Döngü • Haftalık Hesaplama)"
+                        >
+                          6 Kişi (Grupsuz)
                         </button>
                       </div>
-                      <p className="text-[10px] text-indigo-950 dark:text-indigo-200 font-bold leading-tight px-0.5">
-                        {activeDepartment.id === 'dep-noc-6p'
-                          ? '✓ Herkese 8-9 Nöbet • Pzt/Per: 1. Grup | Sal/Cum: 2. Grup | Sal/Cmt: 1. Kişi | Çar/Paz: 2. Kişi'
-                          : '✓ 4 Grup (A, B, C döngüsel, D Çarşamba/Pazar nöbetçi)'}
+                      <p className="text-[11px] text-indigo-950 dark:text-indigo-200 font-bold leading-tight px-0.5">
+                        {activeDepartment.id === 'dep-noc-6p-ind'
+                          ? '✓ 6 Kişi Grupsuz • Herkes Tek Kişi • 6 Haftada 7 Nöbet • 5 Gün Kesintisiz İstirahat'
+                          : activeDepartment.id === 'dep-noc-6p'
+                          ? '✓ 6 Kişi 3 Grup • Pzt/Per: 1. Grup | Sal/Cum: 2. Grup | Sal/Cmt: 1. Kişi | Çar/Paz: 2. Kişi'
+                          : '✓ 7 Kişi 4 Grup (A, B, C döngüsel, D Çarşamba/Pazar nöbetçi)'}
                       </p>
                     </div>
                   )}
 
                   {/* DÖNEM SEÇİCİ (AY / YIL) */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <label
+                      style={{ color: isDarkMode ? '#FFFFFF' : '#000000', fontWeight: 900 }}
+                      className="text-xs font-black uppercase tracking-wider block"
+                    >
                       DÖNEM (AY & YIL)
                     </label>
                     <div
-                      className={`flex items-center justify-between p-1 rounded-2xl border ${
+                      className={`flex items-center justify-between p-1.5 rounded-2xl border ${
                         isDarkMode
                           ? 'bg-slate-900/90 border-slate-800'
                           : 'bg-slate-50 border-slate-200'
@@ -1342,8 +1531,8 @@ export default function App() {
                         onClick={handlePrevMonth}
                         className={`p-2 rounded-xl transition-colors cursor-pointer ${
                           isDarkMode
-                            ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                            ? 'text-white hover:bg-slate-800'
+                            : 'text-black hover:bg-slate-200'
                         }`}
                         title="Önceki Ay"
                       >
@@ -1407,8 +1596,8 @@ export default function App() {
                         onClick={handleNextMonth}
                         className={`p-2 rounded-xl transition-colors cursor-pointer ${
                           isDarkMode
-                            ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                            ? 'text-white hover:bg-slate-800'
+                            : 'text-black hover:bg-slate-200'
                         }`}
                         title="Sonraki Ay"
                       >
@@ -1418,7 +1607,7 @@ export default function App() {
                   </div>
 
                   {/* 1. ANA BUTON: VARDİYAYI HAZIRLA / GÜNCELLE */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <button
                       type="button"
                       onClick={handleGenerateSchedule}
@@ -1433,6 +1622,25 @@ export default function App() {
                       <span>VARDİYAYI HAZIRLA / GÜNCELLE</span>
                     </button>
 
+                    {/* 🔍 VARDİYAYI DENETLE (CHECK / HATA KONTROLÜ) BUTONU */}
+                    <button
+                      type="button"
+                      id="btn-open-health-check"
+                      onClick={() => setIsHealthCheckModalOpen(true)}
+                      className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm hover:-translate-y-0.5 active:scale-98 flex items-center justify-center gap-2 ${
+                        isDarkMode
+                          ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 ring-1 ring-emerald-500/20'
+                          : 'bg-emerald-50 border border-emerald-300 text-emerald-900 hover:bg-emerald-100/70 ring-1 ring-emerald-400/30'
+                      }`}
+                      title="Tüm vardiyayı baştan sona denetler; peş peşe nöbet, istirahat ihlali ve kadro hatalarını anında raporlar"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>🔍 VARDİYAYI DENETLE (CHECK ET)</span>
+                      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black">
+                        Canlı Test
+                      </span>
+                    </button>
+
                     <p className="text-[10px] text-center font-bold text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       <span>{TURKISH_MONTHS[selectedMonth]} {selectedYear} vardiyası bilgisayarınızda kayıtlıdır</span>
@@ -1441,7 +1649,10 @@ export default function App() {
 
                   {/* 2. DİKEY HIZLI YÖNETİM BUTONLARI (ALT ALTA) */}
                   <div className="flex flex-col gap-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <label
+                      style={{ color: isDarkMode ? '#FFFFFF' : '#000000', fontWeight: 900 }}
+                      className="text-xs font-black uppercase tracking-wider block"
+                    >
                        HIZLI YÖNETİM BUTONLARI
                     </label>
 
@@ -1505,36 +1716,32 @@ export default function App() {
                       </span>
                     </button>
 
-                    {/* 🏖️ İZİN / RAPOR YÖNETİMİ BUTONU */}
+                    {/* ⚖️ HAFTA SONU & ADALET AJANI BUTONU (AYRI BUTON) */}
                     <button
                       type="button"
-                      id="btn-open-leave-modal"
-                      onClick={() => {
-                        setIsLeaveModalOpen(true);
-                      }}
+                      id="btn-open-weekend-equity-audit"
+                      onClick={() => setIsWeekendEquityModalOpen(true)}
                       className={`w-full p-3 rounded-2xl text-left border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 active:scale-98 flex items-center justify-between gap-3 group ${
                         isDarkMode
-                          ? 'bg-gradient-to-r from-amber-950/70 to-yellow-950/70 text-amber-300 border-amber-800/60 hover:border-amber-500 hover:bg-amber-900/60'
-                          : 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-900 border-amber-200 hover:border-amber-300 hover:bg-amber-100/60'
+                          ? 'bg-gradient-to-r from-emerald-950/70 to-teal-950/70 text-emerald-300 border-emerald-800/60 hover:border-emerald-500 hover:bg-emerald-900/60 ring-1 ring-emerald-500/20'
+                          : 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-100/60 ring-1 ring-emerald-400/20'
                       }`}
-                      title="Personel İzin/Rapor günlerini belirleyin (Vardiyada X yazılır, hedeften düşülür)"
+                      title="6 Kişilik Grupsuz modelde kimin ne kadar geldiğini, hafta sonu nöbet sayılarını ve 6 aylık adalet eşitliğini denetleyen ajan"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
-                          <Palmtree className="w-4 h-4" />
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                          <Scale className="w-4 h-4 text-emerald-500" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black truncate">İzin / Rapor Yönetimi</div>
-                          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate">Mazeret & İzin Girişi</div>
+                          <div className="text-xs font-black truncate">Hafta Sonu & Adalet Ajanı</div>
+                          <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold truncate">
+                            Kimin Ne Kadar Geldiği Raporu
+                          </div>
                         </div>
                       </div>
-                      {currentMonthLeaves.length > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-extrabold shrink-0">
-                          {currentMonthLeaves.length} İzin
-                        </span>
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-amber-400 opacity-60 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                      )}
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-slate-950 shrink-0">
+                        Ajan
+                      </span>
                     </button>
 
                     {/* 👥 KADRO & GRUP YÖNETİMİ BUTONU */}
@@ -1857,6 +2064,87 @@ export default function App() {
                         onDayClick={(shift) => setOverrideModalShift(shift)}
                       />
                     )}
+
+                    {/* ÇİZELGE ALTI HIZLI İŞLEMLER: NÖBET TAKASI & İZİN RAPOR YÖNETİMİ */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-3">
+                      {/* 1. NÖBET TAKASI & BECAYİŞ KARTI */}
+                      <div
+                        onClick={() => setIsSwapModalOpen(true)}
+                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer shadow-sm hover:-translate-y-0.5 active:scale-98 flex items-center justify-between gap-4 group ${
+                          isDarkMode
+                            ? 'bg-gradient-to-r from-violet-950/70 via-slate-900 to-indigo-950/70 border-violet-700/60 hover:border-violet-500 hover:bg-violet-900/60'
+                            : 'bg-white border-violet-300 hover:border-violet-500 hover:shadow-md'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-violet-600/30 group-hover:scale-105 transition-transform">
+                            <ArrowLeftRight className="w-6 h-6" />
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4
+                                style={{ color: isDarkMode ? '#FFFFFF' : '#000000' }}
+                                className="text-sm sm:text-base font-black tracking-tight truncate"
+                              >
+                                Nöbet Takası & Becayiş
+                              </h4>
+                              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-violet-700 text-white shrink-0 shadow-xs">
+                                Yönetici E-Posta Onaylı
+                              </span>
+                            </div>
+                            <p
+                              style={{ color: isDarkMode ? '#E2E8F0' : '#1E293B' }}
+                              className="text-xs font-bold truncate"
+                            >
+                              Personeller arası nöbet takası talebi oluşturun, kuralları denetleyin ve e-posta iletin.
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-6 h-6 text-violet-600 dark:text-violet-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                      </div>
+
+                      {/* 2. İZİN / RAPOR YÖNETİMİ KARTI */}
+                      <div
+                        onClick={() => setIsLeaveModalOpen(true)}
+                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer shadow-sm hover:-translate-y-0.5 active:scale-98 flex items-center justify-between gap-4 group ${
+                          isDarkMode
+                            ? 'bg-gradient-to-r from-amber-950/70 via-slate-900 to-yellow-950/70 border-amber-700/60 hover:border-amber-500 hover:bg-amber-900/60'
+                            : 'bg-white border-amber-300 hover:border-amber-500 hover:shadow-md'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-600/30 group-hover:scale-105 transition-transform">
+                            <Palmtree className="w-6 h-6" />
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4
+                                style={{ color: isDarkMode ? '#FFFFFF' : '#000000' }}
+                                className="text-sm sm:text-base font-black tracking-tight truncate"
+                              >
+                                İzin & Rapor Yönetimi
+                              </h4>
+                              {currentMonthLeaves.length > 0 ? (
+                                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-700 text-white shrink-0 shadow-xs">
+                                  {currentMonthLeaves.length} Kayıtlı İzin
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-slate-800 text-white dark:bg-slate-700 shrink-0">
+                                  Mazeret Girişi
+                                </span>
+                              )}
+                            </div>
+                            <p
+                              style={{ color: isDarkMode ? '#E2E8F0' : '#1E293B' }}
+                              className="text-xs font-bold truncate"
+                            >
+                              Yıllık izin, mazeret ve sağlık raporlarını sisteme işleyin; mesai hedefinden düşülsün.
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-6 h-6 text-amber-600 dark:text-amber-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <div className={`flex flex-col items-center justify-center py-20 px-8 text-center rounded-3xl border border-dashed transition-all shadow-sm ${
@@ -1954,6 +2242,49 @@ export default function App() {
           selectedMonth={selectedMonth}
           leavesByMonth={leavesByMonth}
           isDark={isDarkMode}
+        />
+      )}
+
+      {/* ⚖️ Hafta Sonu & Adalet Denetim Ajanı Modalı */}
+      {isWeekendEquityModalOpen && (
+        <WeekendEquityAuditModal
+          isOpen={isWeekendEquityModalOpen}
+          onClose={() => setIsWeekendEquityModalOpen(false)}
+          department={activeDepartment}
+          currentYear={selectedYear}
+          currentMonth={selectedMonth}
+          isDark={isDarkMode}
+        />
+      )}
+
+      {/* 🔍 Vardiya Canlı Denetim & Check Robotu Modalı */}
+      {isHealthCheckModalOpen && (
+        <ScheduleHealthCheckModal
+          isOpen={isHealthCheckModalOpen}
+          onClose={() => setIsHealthCheckModalOpen(false)}
+          summary={monthSummary}
+          department={activeDepartment}
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          leaves={currentMonthLeaves}
+          isDark={isDarkMode}
+        />
+      )}
+
+      {/* 🔄 Nöbet Takası & Becayiş Modalı */}
+      {isSwapModalOpen && (
+        <ShiftSwapModal
+          isOpen={isSwapModalOpen}
+          onClose={() => setIsSwapModalOpen(false)}
+          summary={monthSummary}
+          department={activeDepartment}
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          isDark={isDarkMode}
+          isAdmin={isAdmin}
+          managerName="Dilek Hanım"
+          onApplySwap={handleApplySwap}
+          onRequestAdminLogin={() => setIsLoginModalOpen(true)}
         />
       )}
 

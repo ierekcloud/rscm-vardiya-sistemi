@@ -124,13 +124,13 @@ export async function exportScheduleToExcel(
       const isWeekend = Boolean(shift.isWeekend);
 
       if (isWeekend) {
-        // HAFTA SONU RENKLENDİRMESİ (Amber / Canlı Altın Sarısı)
-        cell4.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF78350F' } }; // Amber 900
-        cell4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } }; // Amber 200
+        // HAFTA SONU BAŞLIK RENKLENDİRMESİ (Canlı Altın Sarısı / Amber - Çok Belirgin)
+        cell4.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF7C2D12' } }; // Koyu Amber
+        cell4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD54F' } }; // Canlı Altın Sarısı
         cell4.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        cell5.font = { name: 'Segoe UI', size: 8, bold: true, color: { argb: 'FF92400E' } };
-        cell5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } };
+        cell5.font = { name: 'Segoe UI', size: 8.5, bold: true, color: { argb: 'FF9A3412' } };
+        cell5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD54F' } };
         cell5.alignment = { vertical: 'middle', horizontal: 'center' };
       } else {
         // Hafta İçi
@@ -241,9 +241,9 @@ export async function exportScheduleToExcel(
         } else {
           // Boş Gün (-)
           if (isWeekend) {
-            // HAFTA SONU RENKLİ VURGUSU
-            cell.font = { name: 'Segoe UI', size: 9.5, color: { argb: 'FFB45309' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFBEB' } }; // Amber 50
+            // HAFTA SONU BELİRGİN PASTEL ALTIN / AMBER VURGUSU
+            cell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: 'FF92400E' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3C4' } }; // Canlı Açık Altın Sarısı
           } else {
             cell.font = { name: 'Segoe UI', size: 9.5, color: { argb: 'FF94A3B8' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseRowBg } };
@@ -474,12 +474,12 @@ export async function exportYearlyScheduleToExcel(
         const isWk = Boolean(shift.isWeekend);
 
         if (isWk) {
-          c4.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF78350F' } };
-          c4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } };
+          c4.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF7C2D12' } };
+          c4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD54F' } }; // Canlı Altın Sarısı
           c4.alignment = { vertical: 'middle', horizontal: 'center' };
 
-          c5.font = { name: 'Segoe UI', size: 7.5, bold: true, color: { argb: 'FF92400E' } };
-          c5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } };
+          c5.font = { name: 'Segoe UI', size: 8, bold: true, color: { argb: 'FF9A3412' } };
+          c5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD54F' } };
           c5.alignment = { vertical: 'middle', horizontal: 'center' };
         } else {
           c4.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF1E293B' } };
@@ -556,8 +556,9 @@ export async function exportYearlyScheduleToExcel(
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
           } else {
             if (isWk) {
-              cell.font = { name: 'Segoe UI', size: 9, color: { argb: 'FFB45309' } };
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFBEB' } };
+              // Hafta Sonu Belirgin Pastel Altın Sarısı
+              cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FF92400E' } };
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3C4' } }; // Açık Altın Sarısı
             } else {
               cell.font = { name: 'Segoe UI', size: 9, color: { argb: 'FF94A3B8' } };
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DayShift, GROUPS_CONFIG, GroupId } from '../types';
+import { DayShift, getGroupConfig, GroupId } from '../types';
 import { Clock, UserCheck, AlertCircle } from 'lucide-react';
 
 interface CalendarViewProps {
@@ -151,14 +151,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               <div className="space-y-1.5 my-1.5">
                 <div className="flex flex-wrap items-center gap-1.5">
                   {uniqueGroupIds.map(grpId => {
-                    const groupCfg = GROUPS_CONFIG[grpId];
+                    const groupCfg = getGroupConfig(grpId);
                     if (!groupCfg) return null;
+                    const isIndividual = String(grpId).startsWith('P');
                     return (
                       <span
                         key={grpId}
                         className={`text-[11px] font-black px-2 py-0.5 rounded border ${groupCfg.badgeBg} ${groupCfg.badgeColor}`}
                       >
-                        Grup {grpId} (24s)
+                        {isIndividual ? groupCfg.name : `Grup ${grpId}`} (24s)
                       </span>
                     );
                   })}

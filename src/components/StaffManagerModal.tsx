@@ -270,6 +270,7 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                               type="text"
                               required
                               value={member.name}
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) => handleNameChange(member.id, e.target.value)}
                               placeholder="Personel Adı"
                               className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 ${

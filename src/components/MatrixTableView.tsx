@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DayShift, StaffMember, GROUPS_CONFIG, MonthSummary } from '../types';
+import { DayShift, StaffMember, getGroupConfig, MonthSummary } from '../types';
 import { Pencil, Check, X } from 'lucide-react';
 
 interface MatrixTableViewProps {
@@ -27,9 +27,11 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
   const [editingNameValue, setEditingNameValue] = useState<string>('');
 
   const handleSaveInline = (staffId: string) => {
-    const trimmed = editingNameValue.trim();
-    if (trimmed && onUpdateStaffName) {
-      onUpdateStaffName(staffId, trimmed);
+    let clean = editingNameValue.trim();
+    // Başında istemeden kalan grup harfleri veya "A - ", "A: ", "A. " gibi önekleri temizle
+    clean = clean.replace(/^(?:Grup\s+[A-F]\s*[:-]?\s*|[A-F]\s*[:-]\s*|[A-F]\.\s*)/i, '').trim();
+    if (clean && onUpdateStaffName) {
+      onUpdateStaffName(staffId, clean);
     }
     setEditingStaffId(null);
   };
@@ -114,7 +116,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
               </th>
 
               {shifts.map((s) => {
-                // SADECE Cumartesi ve Pazar günleri hafta sonudur, hafta içi (Pzt-Cum) ASLA boyanamaz
+                // SADECE Cumartesi ve Pazar günleri hafta sonudur (boyalı), hafta içi (Pzt-Cum) KESİNLİKLE BEYAZ / RENKSİZDİR
                 const isWeekend = Boolean(s.isWeekend);
 
                 return (
@@ -126,8 +128,8 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                           ? 'bg-amber-500/30 text-amber-100 border-amber-500/60 font-black'
                           : 'bg-amber-200 text-amber-950 border-amber-400 font-black'
                         : isDark
-                        ? 'text-slate-300 border-slate-800/80 hover:bg-slate-800/30'
-                        : 'text-slate-700 border-slate-200 hover:bg-slate-50'
+                        ? 'bg-[#0B1120] text-slate-300 border-slate-800/80'
+                        : 'bg-white text-slate-700 border-slate-200'
                     }`}
                     title={`${s.dayNumber} ${s.dayName}${isWeekend ? ' (Hafta Sonu)' : ''}`}
                   >
@@ -177,7 +179,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
           </thead>
           <tbody className={`divide-y ${isDark ? 'divide-slate-800/80' : 'divide-slate-200/90'}`}>
             {staffList.map((staff) => {
-              const grpCfg = GROUPS_CONFIG[staff.groupId];
+              const grpCfg = getGroupConfig(staff.groupId);
               const stats = summary.staffStats[staff.id];
               const isSelected = selectedStaffId === staff.id;
 
@@ -213,6 +215,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                             type="text"
                             autoFocus
                             value={editingNameValue}
+                            onFocus={(e) => e.target.select()}
                             onChange={(e) => setEditingNameValue(e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
@@ -289,8 +292,8 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                         ? 'bg-amber-950/40 border-r border-amber-500/40'
                         : 'bg-amber-100/90 border-r border-amber-300/90'
                       : isDark
-                      ? 'border-r border-slate-800/60'
-                      : 'border-r border-slate-200/80';
+                      ? 'bg-[#0E1526] border-r border-slate-800/60'
+                      : 'bg-white border-r border-slate-200/80';
 
                     return (
                       <td key={shift.dayNumber} className={`text-center p-0 ${cellBg} relative`}>
