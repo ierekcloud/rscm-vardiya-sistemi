@@ -31,6 +31,21 @@ export const DEFAULT_NOC_6P_INDIVIDUAL_STAFF: StaffMember[] = [
   { id: 'noc-ind-6', name: 'Mustafa Telsiz', groupId: 'P6', orderInGroup: 6, roleNote: '6. Sıra (Bireysel / Tek Kişi)' },
 ];
 
+// MPLS Birimi Kadrosu (11 Personel - 4 Grup A, B, C, D)
+export const DEFAULT_MPLS_STAFF: StaffMember[] = [
+  { id: 'mpls-1', name: 'Örnek 1', groupId: 'A', orderInGroup: 1 },
+  { id: 'mpls-2', name: 'Örnek 2', groupId: 'A', orderInGroup: 2 },
+  { id: 'mpls-3', name: 'Örnek 3', groupId: 'A', orderInGroup: 3 },
+  { id: 'mpls-4', name: 'Örnek 4', groupId: 'B', orderInGroup: 1 },
+  { id: 'mpls-5', name: 'Örnek 5', groupId: 'B', orderInGroup: 2 },
+  { id: 'mpls-6', name: 'Örnek 6', groupId: 'B', orderInGroup: 3 },
+  { id: 'mpls-7', name: 'Örnek 7', groupId: 'C', orderInGroup: 1 },
+  { id: 'mpls-8', name: 'Örnek 8', groupId: 'C', orderInGroup: 2 },
+  { id: 'mpls-9', name: 'Örnek 9', groupId: 'C', orderInGroup: 3 },
+  { id: 'mpls-10', name: 'Örnek 10', groupId: 'D', orderInGroup: 1 },
+  { id: 'mpls-11', name: 'Örnek 11', groupId: 'D', orderInGroup: 2 },
+];
+
 // Bölümler: NOC (Standart 7 Kişi), NOC (6 Kişi Gruplu), NOC (6 Kişi Grupsuz), MPLS, DSL, SANTRAL, TRANSMİSYON
 export const DEFAULT_DEPARTMENTS: Department[] = [
   {
@@ -65,19 +80,7 @@ export const DEFAULT_DEPARTMENTS: Department[] = [
   {
     id: 'dep-mpls',
     name: 'MPLS',
-    staff: [
-      { id: 'mpls-1', name: 'Burak Koç', groupId: 'A', orderInGroup: 1 },
-      { id: 'mpls-2', name: 'Emre Öztürk', groupId: 'A', orderInGroup: 2 },
-      { id: 'mpls-3', name: 'Alp Tuna', groupId: 'A', orderInGroup: 3 },
-      { id: 'mpls-4', name: 'Serkan Aydın', groupId: 'B', orderInGroup: 1 },
-      { id: 'mpls-5', name: 'Oğuzhan Tekin', groupId: 'B', orderInGroup: 2 },
-      { id: 'mpls-6', name: 'Melih Özdemir', groupId: 'B', orderInGroup: 3 },
-      { id: 'mpls-7', name: 'Murat Arslan', groupId: 'C', orderInGroup: 1 },
-      { id: 'mpls-8', name: 'Kemal Aksoy', groupId: 'C', orderInGroup: 2 },
-      { id: 'mpls-9', name: 'Onur Şengül', groupId: 'C', orderInGroup: 3 },
-      { id: 'mpls-10', name: 'Caner Güneş', groupId: 'D', orderInGroup: 1 },
-      { id: 'mpls-11', name: 'Gökhan Sönmez', groupId: 'D', orderInGroup: 2 },
-    ],
+    staff: DEFAULT_MPLS_STAFF,
   },
   {
     id: 'dep-dsl',

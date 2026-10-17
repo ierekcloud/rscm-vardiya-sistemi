@@ -13,6 +13,7 @@ import {
   DEFAULT_DEPARTMENTS,
   DEFAULT_NOC_6P_STAFF,
   DEFAULT_NOC_6P_INDIVIDUAL_STAFF,
+  DEFAULT_MPLS_STAFF,
   generateMonthSchedule,
   exportScheduleToCSV,
   TURKISH_MONTHS,
@@ -190,6 +191,14 @@ export default function App() {
               ...d,
               name: cleanName,
               staff: hasNewStaff ? d.staff : DEFAULT_NOC_6P_INDIVIDUAL_STAFF,
+            };
+          }
+          if (d.id === 'dep-mpls') {
+            const hasSampleStaff = d.staff?.some(s => s.name.startsWith('Örnek') || s.name.startsWith('XYZ') || s.name.startsWith('xyz'));
+            return {
+              ...d,
+              name: 'MPLS',
+              staff: hasSampleStaff ? d.staff : DEFAULT_MPLS_STAFF,
             };
           }
           if (d.staff && d.staff.length > 0) {
@@ -1876,6 +1885,17 @@ export default function App() {
                       }`}
                     >
                       NOC Pilot • Kişi Bazlı Matematiksel Denkleştirme
+                    </div>
+                  )}
+                  {activeDepartment.id === 'dep-mpls' && (
+                    <div
+                      className={`p-2.5 rounded-2xl border text-[11px] font-bold text-center ${
+                        isDarkMode
+                          ? 'bg-sky-950/40 border-sky-800/50 text-sky-300'
+                          : 'bg-sky-50 border-sky-200 text-sky-800'
+                      }`}
+                    >
+                      MPLS Omurga Ağı • 4 Grup Rotasyonu & 11 Personel
                     </div>
                   )}
                 </div>

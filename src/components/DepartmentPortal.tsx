@@ -102,10 +102,11 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
 
   const handleCardClick = (dept: Department) => {
     const isNoc = dept.id === 'dep-noc' || dept.id === 'dep-noc-6p' || dept.id === 'dep-noc-6p-ind';
-    if (isNoc || isSuperAdmin) {
+    const isMpls = dept.id === 'dep-mpls';
+    if (isNoc || isMpls || isSuperAdmin) {
       onSelectDepartment(dept.id === 'dep-noc' ? 'dep-noc-6p' : dept.id);
     } else {
-      setLockedNotice(`🔒 ${dept.name} birimi kilitlidir. Sistem şu an sadece NOC pilot biriminde devrededir. Pilot süreç tamamlanıp kabul gördükten sonra bu birim açılacaktır.`);
+      setLockedNotice(`🔒 ${dept.name} birimi kilitlidir. Sistem şu an sadece NOC ve MPLS birimlerinde devrededir. Pilot süreç tamamlanıp kabul gördükten sonra bu birim açılacaktır.`);
       setTimeout(() => {
         setLockedNotice(null);
       }, 5000);
@@ -173,7 +174,8 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                 tag: 'Vardiyalı'
               };
               const isNoc = dept.id === 'dep-noc';
-              const isAccessible = isNoc || isSuperAdmin;
+              const isMpls = dept.id === 'dep-mpls';
+              const isAccessible = isNoc || isMpls || isSuperAdmin;
 
             return (
               <button
@@ -182,7 +184,9 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                 onClick={() => handleCardClick(dept)}
                 className={`group relative p-4 sm:p-5 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between overflow-hidden ${
                   isAccessible
-                    ? 'bg-gradient-to-br from-indigo-50/90 via-white to-white border-indigo-400 shadow-md hover:shadow-xl hover:-translate-y-1 cursor-pointer ring-2 ring-indigo-400/20'
+                    ? isMpls
+                      ? 'bg-gradient-to-br from-sky-50/90 via-white to-white border-sky-400 shadow-md hover:shadow-xl hover:-translate-y-1 cursor-pointer ring-2 ring-sky-400/20'
+                      : 'bg-gradient-to-br from-indigo-50/90 via-white to-white border-indigo-400 shadow-md hover:shadow-xl hover:-translate-y-1 cursor-pointer ring-2 ring-indigo-400/20'
                     : 'bg-slate-100/60 border-slate-300/80 opacity-50 hover:opacity-70 cursor-not-allowed select-none backdrop-blur-[1px]'
                 }`}
                 style={{ backgroundColor: isAccessible ? '#ffffff' : 'rgba(241, 245, 249, 0.65)' }}
@@ -199,7 +203,9 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                 <div className="flex items-start justify-between w-full mb-3.5 relative z-10">
                   <div className={`p-3 rounded-xl transition-all duration-300 relative ${
                     isAccessible
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 group-hover:scale-105'
+                      ? isMpls
+                        ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30 group-hover:scale-105 [&>svg]:text-white'
+                        : 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 group-hover:scale-105 [&>svg]:text-white'
                       : 'bg-slate-200/80 text-slate-600 border border-slate-300'
                   }`}>
                     {meta.icon}
@@ -231,7 +237,9 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                       <span>{dept.id.startsWith('dep-noc') ? 'NOC' : dept.name}</span>
                     </span>
                     {isAccessible && (
-                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-1.5 group-hover:translate-x-0 transition-all text-indigo-600" />
+                      <ArrowRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-1.5 group-hover:translate-x-0 transition-all ${
+                        isMpls ? 'text-sky-600' : 'text-indigo-600'
+                      }`} />
                     )}
                   </h3>
                 </div>
@@ -249,12 +257,14 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                     {dept.staff.length} Personel
                   </span>
                   
-                  {isNoc ? (
+                  {isAccessible ? (
                     <span 
-                      className="group-hover:underline font-black text-indigo-600 text-[11px] flex items-center gap-1"
-                      style={{ color: '#4338ca' }}
+                      className={`group-hover:underline font-black text-[11px] flex items-center gap-1 ${
+                        isMpls ? 'text-sky-600' : 'text-indigo-600'
+                      }`}
+                      style={{ color: isMpls ? '#0284c7' : '#4338ca' }}
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <CheckCircle2 className="w-3.5 h-3.5" />
                       Cetveli Aç →
                     </span>
                   ) : (
