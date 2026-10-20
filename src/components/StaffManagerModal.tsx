@@ -49,8 +49,9 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
   }, [staffList, isOpen]);
 
   const is6PersonModel = departmentId === 'dep-noc-6p';
+  const is3GroupModel = departmentId === 'dep-mpls' || (!currentStaff.some((s) => s.groupId === 'D') && currentStaff.length === 12);
   const hasGroupD = currentStaff.some((s) => s.groupId === 'D');
-  const groupKeys: GroupId[] = (is6PersonModel || !hasGroupD) ? ['A', 'B', 'C'] : ['A', 'B', 'C', 'D'];
+  const groupKeys: GroupId[] = (is6PersonModel || is3GroupModel || !hasGroupD) ? ['A', 'B', 'C'] : ['A', 'B', 'C', 'D'];
 
   if (!isOpen) return null;
 
@@ -105,12 +106,23 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
 
   // Örnek İsimlerle Doldur
   const handleFillExamples = () => {
+    if (departmentId === 'dep-mpls') {
+      setCurrentStaff((prev) =>
+        prev.map((st, idx) => ({
+          ...st,
+          name: `Örnek ${idx + 1}`,
+        }))
+      );
+      return;
+    }
     const examples = [
       'Ahmet Yılmaz', 'Mehmet Demir',
       'Mustafa Kaya', 'Ali Şahin',
       'Hasan Çelik', 'Hüseyin Yıldız',
       'İbrahim Erek', 'Kemal Arslan',
-      'Caner Aydın', 'Burak Kurt'
+      'Caner Aydın', 'Burak Kurt',
+      'Emre Öztürk', 'Serkan Aydın',
+      'Oğuzhan Kaya', 'Melih Özdemir'
     ];
     setCurrentStaff((prev) =>
       prev.map((st, idx) => ({
@@ -225,7 +237,7 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                         <span className={`w-3 h-3 rounded-full ${grpConfig.borderBg}`} />
                         <div>
                           <span className="text-xs font-black tracking-tight block">
-                            {is6PersonModel ? (
+                            {is6PersonModel || is3GroupModel ? (
                               grpId === 'A' ? '1. Grup (A)' :
                               grpId === 'B' ? '2. Grup (B)' :
                               '3. Grup (C)'
@@ -236,6 +248,13 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                               {grpId === 'A' && 'Pazartesi & Perşembe'}
                               {grpId === 'B' && 'Salı & Cuma'}
                               {grpId === 'C' && 'Salı/Cmt (1. Kişi) • Çar/Paz (2. Kişi)'}
+                            </span>
+                          )}
+                          {is3GroupModel && (
+                            <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold block leading-tight">
+                              {grpId === 'A' && '1. Hafta İçi: Pzt & Per (2 Boşluk / 3 Boşluk)'}
+                              {grpId === 'B' && '2. Hafta İçi: Salı & Cuma (2 Boşluk / 3 Boşluk)'}
+                              {grpId === 'C' && 'Hafta Sonu: Çar (Tüm C) • Cmt 2 Kişi / Paz 2 Kişi'}
                             </span>
                           )}
                         </div>

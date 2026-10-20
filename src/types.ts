@@ -1,6 +1,6 @@
 export type GroupId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'P1' | 'P2' | 'P3' | 'P4' | 'P5' | 'P6' | string;
 
-export type ShiftModelType = 'STANDARD_7P' | 'MEETING_6P' | 'INDIVIDUAL_6P';
+export type ShiftModelType = 'STANDARD_7P' | 'MEETING_6P' | 'INDIVIDUAL_6P' | 'STANDARD_3G';
 
 export interface GroupConfig {
   id: GroupId;

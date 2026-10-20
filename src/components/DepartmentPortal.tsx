@@ -6,6 +6,7 @@ import {
   Wifi, 
   Radio, 
   PhoneCall, 
+  Smartphone,
   ArrowRight,
   Sparkles,
   Users,
@@ -36,27 +37,31 @@ interface DepartmentPortalProps {
 const DEPT_META: Record<string, { icon: React.ReactNode; subtitle: string; tag?: string }> = {
   'dep-noc': {
     icon: <Network className="w-6 h-6 text-indigo-600" />,
-    subtitle: '',
+    subtitle: 'Ağ Operasyon & İzleme Merkezi',
   },
   'dep-mpls': {
     icon: <Server className="w-6 h-6 text-sky-600" />,
-    subtitle: 'Omurga Yönlendirme & Veri Ağı',
+    subtitle: '3 Grup (12 Kişi) • 2 Grup Hafta İçi, 1 Grup Hafta Sonu (Aylık Rotasyon)',
   },
-  'dep-dsl': {
-    icon: <Wifi className="w-6 h-6 text-emerald-600" />,
-    subtitle: 'Genişbant Erişim & Saha Destek',
-  },
-  'dep-trans': {
-    icon: <Radio className="w-6 h-6 text-amber-600" />,
-    subtitle: 'Transmisyon & Radyolink İletim',
-  },
-  'dep-transmisyon': {
-    icon: <Radio className="w-6 h-6 text-amber-600" />,
-    subtitle: 'Transmisyon & Radyolink İletim',
+  'dep-mobil': {
+    icon: <Smartphone className="w-6 h-6 text-emerald-600" />,
+    subtitle: 'Mobil İletişim & Saha Operasyonları',
   },
   'dep-santral': {
     icon: <PhoneCall className="w-6 h-6 text-purple-600" />,
     subtitle: 'Ses Santralleri & İletişim Altyapısı',
+  },
+  'dep-dsl': {
+    icon: <Wifi className="w-6 h-6 text-slate-500" />,
+    subtitle: 'Genişbant Erişim & Saha Destek',
+  },
+  'dep-trans': {
+    icon: <Radio className="w-6 h-6 text-slate-500" />,
+    subtitle: 'Transmisyon & Radyolink İletim',
+  },
+  'dep-transmisyon': {
+    icon: <Radio className="w-6 h-6 text-slate-500" />,
+    subtitle: 'Transmisyon & Radyolink İletim',
   },
 };
 
@@ -103,10 +108,13 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
   const handleCardClick = (dept: Department) => {
     const isNoc = dept.id === 'dep-noc' || dept.id === 'dep-noc-6p' || dept.id === 'dep-noc-6p-ind';
     const isMpls = dept.id === 'dep-mpls';
-    if (isNoc || isMpls || isSuperAdmin) {
+    const isMobil = dept.id === 'dep-mobil';
+    const isSantral = dept.id === 'dep-santral';
+    const isAccessible = isNoc || isMpls || isMobil || isSantral || isSuperAdmin;
+    if (isAccessible) {
       onSelectDepartment(dept.id === 'dep-noc' ? 'dep-noc-6p' : dept.id);
     } else {
-      setLockedNotice(`🔒 ${dept.name} birimi kilitlidir. Sistem şu an sadece NOC ve MPLS birimlerinde devrededir. Pilot süreç tamamlanıp kabul gördükten sonra bu birim açılacaktır.`);
+      setLockedNotice(`🔒 ${dept.name} birimi kilitlidir. Sistem şu an NOC, MPLS, MOBİL ve SANTRAL birimlerinde devrededir. Pilot süreç tamamlanıp kabul gördükten sonra diğer birimler açılacaktır.`);
       setTimeout(() => {
         setLockedNotice(null);
       }, 5000);
@@ -175,7 +183,45 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
               };
               const isNoc = dept.id === 'dep-noc';
               const isMpls = dept.id === 'dep-mpls';
-              const isAccessible = isNoc || isMpls || isSuperAdmin;
+              const isMobil = dept.id === 'dep-mobil';
+              const isSantral = dept.id === 'dep-santral';
+              const isAccessible = isNoc || isMpls || isMobil || isSantral || isSuperAdmin;
+
+              const theme = isMobil 
+                ? {
+                    border: 'border-emerald-400',
+                    ring: 'ring-emerald-400/20',
+                    bgGradient: 'bg-gradient-to-br from-emerald-50/90 via-white to-white',
+                    iconBg: 'bg-emerald-600 text-white shadow-emerald-600/30',
+                    text: 'text-emerald-600',
+                    textStyle: '#059669',
+                  }
+                : isSantral
+                ? {
+                    border: 'border-purple-400',
+                    ring: 'ring-purple-400/20',
+                    bgGradient: 'bg-gradient-to-br from-purple-50/90 via-white to-white',
+                    iconBg: 'bg-purple-600 text-white shadow-purple-600/30',
+                    text: 'text-purple-600',
+                    textStyle: '#7c3aed',
+                  }
+                : isMpls
+                ? {
+                    border: 'border-sky-400',
+                    ring: 'ring-sky-400/20',
+                    bgGradient: 'bg-gradient-to-br from-sky-50/90 via-white to-white',
+                    iconBg: 'bg-sky-600 text-white shadow-sky-600/30',
+                    text: 'text-sky-600',
+                    textStyle: '#0284c7',
+                  }
+                : {
+                    border: 'border-indigo-400',
+                    ring: 'ring-indigo-400/20',
+                    bgGradient: 'bg-gradient-to-br from-indigo-50/90 via-white to-white',
+                    iconBg: 'bg-indigo-600 text-white shadow-indigo-600/30',
+                    text: 'text-indigo-600',
+                    textStyle: '#4338ca',
+                  };
 
             return (
               <button
@@ -184,9 +230,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                 onClick={() => handleCardClick(dept)}
                 className={`group relative p-4 sm:p-5 rounded-2xl border text-left transition-all duration-300 flex flex-col justify-between overflow-hidden ${
                   isAccessible
-                    ? isMpls
-                      ? 'bg-gradient-to-br from-sky-50/90 via-white to-white border-sky-400 shadow-md hover:shadow-xl hover:-translate-y-1 cursor-pointer ring-2 ring-sky-400/20'
-                      : 'bg-gradient-to-br from-indigo-50/90 via-white to-white border-indigo-400 shadow-md hover:shadow-xl hover:-translate-y-1 cursor-pointer ring-2 ring-indigo-400/20'
+                    ? `${theme.bgGradient} ${theme.border} shadow-md hover:shadow-xl hover:-translate-y-1 cursor-pointer ring-2 ${theme.ring}`
                     : 'bg-slate-100/60 border-slate-300/80 opacity-50 hover:opacity-70 cursor-not-allowed select-none backdrop-blur-[1px]'
                 }`}
                 style={{ backgroundColor: isAccessible ? '#ffffff' : 'rgba(241, 245, 249, 0.65)' }}
@@ -203,9 +247,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                 <div className="flex items-start justify-between w-full mb-3.5 relative z-10">
                   <div className={`p-3 rounded-xl transition-all duration-300 relative ${
                     isAccessible
-                      ? isMpls
-                        ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30 group-hover:scale-105 [&>svg]:text-white'
-                        : 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 group-hover:scale-105 [&>svg]:text-white'
+                      ? `${theme.iconBg} shadow-md group-hover:scale-105 [&>svg]:text-white`
                       : 'bg-slate-200/80 text-slate-600 border border-slate-300'
                   }`}>
                     {meta.icon}
@@ -237,11 +279,14 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                       <span>{dept.id.startsWith('dep-noc') ? 'NOC' : dept.name}</span>
                     </span>
                     {isAccessible && (
-                      <ArrowRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-1.5 group-hover:translate-x-0 transition-all ${
-                        isMpls ? 'text-sky-600' : 'text-indigo-600'
-                      }`} />
+                      <ArrowRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 -translate-x-1.5 group-hover:translate-x-0 transition-all ${theme.text}`} />
                     )}
                   </h3>
+                  {meta.subtitle && (
+                    <p className="text-[11px] font-bold text-slate-500 mt-1 line-clamp-1">
+                      {meta.subtitle}
+                    </p>
+                  )}
                 </div>
 
                 {/* Alt Bilgi */}
@@ -259,10 +304,8 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                   
                   {isAccessible ? (
                     <span 
-                      className={`group-hover:underline font-black text-[11px] flex items-center gap-1 ${
-                        isMpls ? 'text-sky-600' : 'text-indigo-600'
-                      }`}
-                      style={{ color: isMpls ? '#0284c7' : '#4338ca' }}
+                      className={`group-hover:underline font-black text-[11px] flex items-center gap-1 ${theme.text}`}
+                      style={{ color: theme.textStyle }}
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       Cetveli Aç →

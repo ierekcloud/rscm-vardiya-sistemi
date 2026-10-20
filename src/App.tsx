@@ -14,6 +14,7 @@ import {
   DEFAULT_NOC_6P_STAFF,
   DEFAULT_NOC_6P_INDIVIDUAL_STAFF,
   DEFAULT_MPLS_STAFF,
+  DEFAULT_MOBIL_STAFF,
   generateMonthSchedule,
   exportScheduleToCSV,
   TURKISH_MONTHS,
@@ -164,8 +165,20 @@ export default function App() {
             }
           }
         }
+        const hasMobil = parsed.some(d => d.id === 'dep-mobil');
+        if (!hasMobil) {
+          const defaultMobil = DEFAULT_DEPARTMENTS.find(d => d.id === 'dep-mobil');
+          if (defaultMobil) {
+            const mplsIdx = parsed.findIndex(d => d.id === 'dep-mpls');
+            if (mplsIdx !== -1) {
+              parsed.splice(mplsIdx + 1, 0, defaultMobil);
+            } else {
+              parsed.push(defaultMobil);
+            }
+          }
+        }
 
-        // NOC birimlerinde güncel personelleri (Serkan Tuna, Mehmet Kızılay vb.) kalıcı eşitle
+        // Birimlerde güncel personelleri ve modelleri kalıcı eşitle
         const synced = parsed.map((d) => {
           const cleanName = d.id === 'dep-noc' ? 'NOC' : d.name;
           if (d.id === 'dep-noc-6p') {
@@ -194,11 +207,40 @@ export default function App() {
             };
           }
           if (d.id === 'dep-mpls') {
-            const hasSampleStaff = d.staff?.some(s => s.name.startsWith('Örnek') || s.name.startsWith('XYZ') || s.name.startsWith('xyz'));
+            const is12Person = d.staff?.length === 12 && !d.staff.some(s => s.groupId === 'D');
+            const hasOrnek = d.staff?.some(s => s.name?.startsWith('Örnek'));
+            const updatedStaff = (is12Person && hasOrnek)
+              ? d.staff.map(s => {
+                  const def = DEFAULT_MPLS_STAFF.find(ds => ds.id === s.id);
+                  return def ? { ...s, roleNote: def.roleNote } : s;
+                })
+              : (is12Person ? d.staff : DEFAULT_MPLS_STAFF);
+
             return {
               ...d,
               name: 'MPLS',
-              staff: hasSampleStaff ? d.staff : DEFAULT_MPLS_STAFF,
+              shiftModel: 'STANDARD_3G',
+              modelDescription: "12 Personel • 3 Grup (4'er Kişi) • 2 Grup Hafta İçi, 1 Grup Hafta Sonu (Aylık Rotasyon)",
+              staff: updatedStaff,
+            };
+          }
+          if (d.id === 'dep-mobil') {
+            return {
+              ...d,
+              name: 'MOBİL',
+              shiftModel: 'STANDARD_7P',
+              modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü (NOC Standart)',
+              staff: (d.staff && d.staff.length === 7) ? d.staff : DEFAULT_MOBIL_STAFF,
+            };
+          }
+          if (d.id === 'dep-santral') {
+            const defSantral = DEFAULT_DEPARTMENTS.find(dd => dd.id === 'dep-santral');
+            return {
+              ...d,
+              name: 'SANTRAL',
+              shiftModel: 'STANDARD_7P',
+              modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü',
+              staff: (d.staff && d.staff.length > 0) ? d.staff : (defSantral?.staff || []),
             };
           }
           if (d.staff && d.staff.length > 0) {
@@ -1895,7 +1937,29 @@ export default function App() {
                           : 'bg-sky-50 border-sky-200 text-sky-800'
                       }`}
                     >
-                      MPLS Omurga Ağı • 4 Grup Rotasyonu & 11 Personel
+                      MPLS Omurga Ağı • 12 Personel (3 Grup) • 2 Grup Hafta İçi, 1 Grup Hafta Sonu (Aylık Rotasyon)
+                    </div>
+                  )}
+                  {activeDepartment.id === 'dep-mobil' && (
+                    <div
+                      className={`p-2.5 rounded-2xl border text-[11px] font-bold text-center ${
+                        isDarkMode
+                          ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      }`}
+                    >
+                      MOBİL Birimi • 7 Personel (NOC Standart 24/72 Döngüsü)
+                    </div>
+                  )}
+                  {activeDepartment.id === 'dep-santral' && (
+                    <div
+                      className={`p-2.5 rounded-2xl border text-[11px] font-bold text-center ${
+                        isDarkMode
+                          ? 'bg-purple-950/40 border-purple-800/50 text-purple-300'
+                          : 'bg-purple-50 border-purple-200 text-purple-800'
+                      }`}
+                    >
+                      SANTRAL Birimi • 7 Personel (4 Grup 24/72 Döngüsü)
                     </div>
                   )}
                 </div>

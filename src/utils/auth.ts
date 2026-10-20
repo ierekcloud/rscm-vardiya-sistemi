@@ -87,6 +87,12 @@ export const DEFAULT_DEPARTMENT_MANAGERS: ManagerCredentials[] = [
   },
   {
     registryNumber: '12345',
+    password: 'mobil',
+    departmentId: 'dep-mobil',
+    departmentName: 'MOBİL',
+  },
+  {
+    registryNumber: '12345',
     password: 'mehmet',
     departmentId: 'dep-dsl',
     departmentName: 'DSL',

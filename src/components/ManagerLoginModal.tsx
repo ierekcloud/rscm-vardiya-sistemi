@@ -58,6 +58,8 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
           setDepartment('NOC');
         } else if (deptUpper.includes('MPLS')) {
           setDepartment('MPLS');
+        } else if (deptUpper.includes('MOBİL') || deptUpper.includes('MOBIL')) {
+          setDepartment('MOBİL');
         } else if (deptUpper.includes('DSL')) {
           setDepartment('DSL');
         } else if (deptUpper.includes('SANTRAL')) {
@@ -271,8 +273,9 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
                     <option value="" disabled>Birim Seçiniz...</option>
                     <option value="NOC">NOC</option>
                     <option value="MPLS">MPLS</option>
-                    <option value="DSL">DSL</option>
+                    <option value="MOBİL">MOBİL</option>
                     <option value="SANTRAL">SANTRAL</option>
+                    <option value="DSL">DSL</option>
                     <option value="TRANSMİSYON">TRANSMİSYON</option>
                   </select>
                 </div>
@@ -402,8 +405,9 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
                     <option value="" disabled>Birim Seçiniz...</option>
                     <option value="NOC">NOC</option>
                     <option value="MPLS">MPLS</option>
-                    <option value="DSL">DSL</option>
+                    <option value="MOBİL">MOBİL</option>
                     <option value="SANTRAL">SANTRAL</option>
+                    <option value="DSL">DSL</option>
                     <option value="TRANSMİSYON">TRANSMİSYON</option>
                   </select>
                 </div>
@@ -559,8 +563,9 @@ export const ManagerLoginModal: React.FC<ManagerLoginModalProps> = ({
                     <option value="" disabled>Birim Seçiniz...</option>
                     <option value="NOC">NOC</option>
                     <option value="MPLS">MPLS</option>
-                    <option value="DSL">DSL</option>
+                    <option value="MOBİL">MOBİL</option>
                     <option value="SANTRAL">SANTRAL</option>
+                    <option value="DSL">DSL</option>
                     <option value="TRANSMİSYON">TRANSMİSYON</option>
                   </select>
                 </div>

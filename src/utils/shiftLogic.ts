@@ -31,22 +31,40 @@ export const DEFAULT_NOC_6P_INDIVIDUAL_STAFF: StaffMember[] = [
   { id: 'noc-ind-6', name: 'Mustafa Telsiz', groupId: 'P6', orderInGroup: 6, roleNote: '6. Sıra (Bireysel / Tek Kişi)' },
 ];
 
-// MPLS Birimi Kadrosu (11 Personel - 4 Grup A, B, C, D)
+// MPLS Birimi Kadrosu (12 Personel - 4'er Kişilik 3 Grup: A, B, C)
+// MPLS Birimi Kadrosu (12 Personel - 4'er Kişilik 3 Grup: A, B, C)
+// NOC Çalışma Düzeni: İlk 2 grup sürekli hafta içi (Pzt/Per ve Salı/Cuma). Son grup hafta sonu (Çar + Cmt 2 kişi, Paz 2 kişi).
+// Her ay bu periyot adil ve eşit şekilde döner (Aylık Grup Rotasyonu).
 export const DEFAULT_MPLS_STAFF: StaffMember[] = [
-  { id: 'mpls-1', name: 'Örnek 1', groupId: 'A', orderInGroup: 1 },
-  { id: 'mpls-2', name: 'Örnek 2', groupId: 'A', orderInGroup: 2 },
-  { id: 'mpls-3', name: 'Örnek 3', groupId: 'A', orderInGroup: 3 },
-  { id: 'mpls-4', name: 'Örnek 4', groupId: 'B', orderInGroup: 1 },
-  { id: 'mpls-5', name: 'Örnek 5', groupId: 'B', orderInGroup: 2 },
-  { id: 'mpls-6', name: 'Örnek 6', groupId: 'B', orderInGroup: 3 },
-  { id: 'mpls-7', name: 'Örnek 7', groupId: 'C', orderInGroup: 1 },
-  { id: 'mpls-8', name: 'Örnek 8', groupId: 'C', orderInGroup: 2 },
-  { id: 'mpls-9', name: 'Örnek 9', groupId: 'C', orderInGroup: 3 },
-  { id: 'mpls-10', name: 'Örnek 10', groupId: 'D', orderInGroup: 1 },
-  { id: 'mpls-11', name: 'Örnek 11', groupId: 'D', orderInGroup: 2 },
+  // 1. Grup (A Grubu) - 4 Personel (1. Hafta İçi: Pzt & Per)
+  { id: 'mpls-1', name: 'Örnek 1', groupId: 'A', orderInGroup: 1, roleNote: '1. Hafta İçi (Pzt & Per • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-2', name: 'Örnek 2', groupId: 'A', orderInGroup: 2, roleNote: '1. Hafta İçi (Pzt & Per • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-3', name: 'Örnek 3', groupId: 'A', orderInGroup: 3, roleNote: '1. Hafta İçi (Pzt & Per • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-4', name: 'Örnek 4', groupId: 'A', orderInGroup: 4, roleNote: '1. Hafta İçi (Pzt & Per • 2 Boşluk / 3 Boşluk)' },
+  // 2. Grup (B Grubu) - 4 Personel (2. Hafta İçi: Salı & Cuma)
+  { id: 'mpls-5', name: 'Örnek 5', groupId: 'B', orderInGroup: 1, roleNote: '2. Hafta İçi (Salı & Cuma • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-6', name: 'Örnek 6', groupId: 'B', orderInGroup: 2, roleNote: '2. Hafta İçi (Salı & Cuma • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-7', name: 'Örnek 7', groupId: 'B', orderInGroup: 3, roleNote: '2. Hafta İçi (Salı & Cuma • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-8', name: 'Örnek 8', groupId: 'B', orderInGroup: 4, roleNote: '2. Hafta İçi (Salı & Cuma • 2 Boşluk / 3 Boşluk)' },
+  // 3. Grup (C Grubu) - 4 Personel (Hafta Sonu Grubu: Çar + Cumartesi 2 Kişi, Pazar 2 Kişi)
+  { id: 'mpls-9', name: 'Örnek 9', groupId: 'C', orderInGroup: 1, roleNote: 'Hafta Sonu 1. Ekip (Çar & Cmt • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-10', name: 'Örnek 10', groupId: 'C', orderInGroup: 2, roleNote: 'Hafta Sonu 1. Ekip (Çar & Cmt • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-11', name: 'Örnek 11', groupId: 'C', orderInGroup: 3, roleNote: 'Hafta Sonu 2. Ekip (Çar & Paz • 2 Boşluk / 3 Boşluk)' },
+  { id: 'mpls-12', name: 'Örnek 12', groupId: 'C', orderInGroup: 4, roleNote: 'Hafta Sonu 2. Ekip (Çar & Paz • 2 Boşluk / 3 Boşluk)' },
 ];
 
-// Bölümler: NOC (Standart 7 Kişi), NOC (6 Kişi Gruplu), NOC (6 Kişi Grupsuz), MPLS, DSL, SANTRAL, TRANSMİSYON
+// MOBİL Birimi Kadrosu (NOC gibi 7 Personel - 4 Grup A, B, C, D)
+export const DEFAULT_MOBIL_STAFF: StaffMember[] = [
+  { id: 'mob-1', name: 'Mobil 1', groupId: 'A', orderInGroup: 1 },
+  { id: 'mob-2', name: 'Mobil 2', groupId: 'A', orderInGroup: 2 },
+  { id: 'mob-3', name: 'Mobil 3', groupId: 'B', orderInGroup: 1 },
+  { id: 'mob-4', name: 'Mobil 4', groupId: 'B', orderInGroup: 2 },
+  { id: 'mob-5', name: 'Mobil 5', groupId: 'C', orderInGroup: 1 },
+  { id: 'mob-6', name: 'Mobil 6', groupId: 'C', orderInGroup: 2 },
+  { id: 'mob-7', name: 'Mobil 7', groupId: 'D', orderInGroup: 1 },
+];
+
+// Bölümler: NOC (Standart 7 Kişi), NOC (6 Kişi Gruplu), NOC (6 Kişi Grupsuz), MPLS (12 Kişi 3 Grup), MOBİL (7 Kişi), SANTRAL, DSL, TRANSMİSYON
 export const DEFAULT_DEPARTMENTS: Department[] = [
   {
     id: 'dep-noc',
@@ -80,24 +98,22 @@ export const DEFAULT_DEPARTMENTS: Department[] = [
   {
     id: 'dep-mpls',
     name: 'MPLS',
+    shiftModel: 'STANDARD_3G',
+    modelDescription: "12 Personel • 3 Grup (4'er Kişi) • 2 Grup Hafta İçi, 1 Grup Hafta Sonu (Aylık Rotasyon)",
     staff: DEFAULT_MPLS_STAFF,
   },
   {
-    id: 'dep-dsl',
-    name: 'DSL',
-    staff: [
-      { id: 'dsl-1', name: 'Fatih Kurt', groupId: 'A', orderInGroup: 1 },
-      { id: 'dsl-2', name: 'Yasin Karaca', groupId: 'A', orderInGroup: 2 },
-      { id: 'dsl-3', name: 'Tolga Çetin', groupId: 'B', orderInGroup: 1 },
-      { id: 'dsl-4', name: 'Gökhan Yavuz', groupId: 'B', orderInGroup: 2 },
-      { id: 'dsl-5', name: 'Onur Bulut', groupId: 'C', orderInGroup: 1 },
-      { id: 'dsl-6', name: 'Barış Keskin', groupId: 'C', orderInGroup: 2 },
-      { id: 'dsl-7', name: 'Kadir Doğan', groupId: 'D', orderInGroup: 1 },
-    ],
+    id: 'dep-mobil',
+    name: 'MOBİL',
+    shiftModel: 'STANDARD_7P',
+    modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü (NOC Standart)',
+    staff: DEFAULT_MOBIL_STAFF,
   },
   {
     id: 'dep-santral',
     name: 'SANTRAL',
+    shiftModel: 'STANDARD_7P',
+    modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü',
     staff: [
       { id: 'snt-1', name: 'Cemil Şen', groupId: 'A', orderInGroup: 1 },
       { id: 'snt-2', name: 'Erhan Polat', groupId: 'A', orderInGroup: 2 },
@@ -109,8 +125,25 @@ export const DEFAULT_DEPARTMENTS: Department[] = [
     ],
   },
   {
+    id: 'dep-dsl',
+    name: 'DSL',
+    shiftModel: 'STANDARD_7P',
+    modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü',
+    staff: [
+      { id: 'dsl-1', name: 'Fatih Kurt', groupId: 'A', orderInGroup: 1 },
+      { id: 'dsl-2', name: 'Yasin Karaca', groupId: 'A', orderInGroup: 2 },
+      { id: 'dsl-3', name: 'Tolga Çetin', groupId: 'B', orderInGroup: 1 },
+      { id: 'dsl-4', name: 'Gökhan Yavuz', groupId: 'B', orderInGroup: 2 },
+      { id: 'dsl-5', name: 'Onur Bulut', groupId: 'C', orderInGroup: 1 },
+      { id: 'dsl-6', name: 'Barış Keskin', groupId: 'C', orderInGroup: 2 },
+      { id: 'dsl-7', name: 'Kadir Doğan', groupId: 'D', orderInGroup: 1 },
+    ],
+  },
+  {
     id: 'dep-transmisyon',
     name: 'TRANSMİSYON',
+    shiftModel: 'STANDARD_7P',
+    modelDescription: '7 Personel • 4 Grup 24/72 Döngüsü',
     staff: [
       { id: 'trn-1', name: 'Levent Yaman', groupId: 'A', orderInGroup: 1 },
       { id: 'trn-2', name: 'Salih Bozkurt', groupId: 'A', orderInGroup: 2 },
@@ -191,7 +224,7 @@ export function getDutyStaffForDay(
   dayOfWeek: number,
   hasGroupD: boolean
 ): StaffMember[] {
-  if (groupId === 'C' && !hasGroupD) {
+  if (groupId === 'C' && !hasGroupD && staffList.length === 6) {
     const cStaff = staffList.filter((s) => s.groupId === 'C');
     if (cStaff.length <= 1) return cStaff;
     if (dayOfWeek === 6) { // Cumartesi -> 1. Kişi (Mustafa Telsiz - Sabit Tek Kişi)
@@ -203,6 +236,21 @@ export function getDutyStaffForDay(
       return pazStaff.length > 0 ? [pazStaff[0]] : (cStaff.length > 1 ? [cStaff[1]] : [cStaff[0]]);
     }
     // Çarşamba ve diğer günlerde C grubu tam kadro (2 kişi) atanır
+    return cStaff;
+  }
+  if (groupId === 'C' && !hasGroupD && staffList.length === 12) {
+    const cStaff = staffList.filter((s) => s.groupId === 'C');
+    if (cStaff.length <= 2) return cStaff;
+    const half = Math.ceil(cStaff.length / 2);
+    if (dayOfWeek === 6) { // Cumartesi -> 1. Ekip (Örnek 9 & 10)
+      const cmtStaff = cStaff.filter((s) => s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi') || (s.orderInGroup !== undefined && s.orderInGroup <= half));
+      return cmtStaff.length > 0 ? cmtStaff : cStaff.slice(0, half);
+    }
+    if (dayOfWeek === 0) { // Pazar -> 2. Ekip (Örnek 11 & 12)
+      const pazStaff = cStaff.filter((s) => s.roleNote?.toLowerCase().includes('pazar') || (s.orderInGroup !== undefined && s.orderInGroup > half));
+      return pazStaff.length > 0 ? pazStaff : cStaff.slice(half);
+    }
+    // Çarşamba ve diğer günlerde C grubu tam kadro (4 kişi) atanır
     return cStaff;
   }
   return staffList.filter((s) => s.groupId === groupId);
@@ -277,11 +325,15 @@ export function getRotatedStaff(
     staffList.some((s) => s.groupId?.startsWith('P')) ||
     (staffList.length === 6 && staffList.every((s) => s.roleNote?.includes('Tek Kişi') || s.roleNote?.includes('Bireysel') || s.groupId?.startsWith('P')));
 
+  const is3GroupModel =
+    shiftModel === 'STANDARD_3G' ||
+    (staffList.length === 12 && !staffList.some((s) => s.groupId === 'D'));
+
   if (isIndividual6p) {
     return [...staffList];
   }
 
-  // Diğer modellerde (7 Kişilik Standart ve 6 Kişilik Gruplu) personeli hiyerarşik grup ve sıra düzenine göre sırala
+  // Diğer modellerde (7 Kişilik Standart, 6 Kişilik Gruplu ve 12 Kişilik 3 Gruplu MPLS) personeli hiyerarşik grup ve sıra düzenine göre sırala
   const sortedStaff = [...staffList].sort((a, b) => {
     const groupOrder = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'A', 'B', 'C', 'D', 'E', 'F'];
     const aGrpIdx = groupOrder.indexOf(a.groupId);
@@ -307,8 +359,11 @@ export function getRotatedStaff(
   const len = sortedStaff.length;
   if (len === 0) return [];
 
-  // İleriye doğru adil döngü: Her ay personeller sırayla bir sonraki gruba ve slota geçer
-  const shiftAmount = ((monthDiff * -1) % len + len) % len;
+  // İleriye doğru adil döngü: Her ay personeller sırayla bir sonraki gruba ve slota geçer.
+  // 3 Gruplu MPLS modelinde (12 kişi) her ay 4 kişilik tam bir grup kayar (2 hafta içi grubu ve 1 hafta sonu grubu sırayla döner).
+  const shiftAmount = is3GroupModel
+    ? (((monthDiff * -4) % len + len) % len)
+    : (((monthDiff * -1) % len + len) % len);
 
   const shifted = [
     ...sortedStaff.slice(len - shiftAmount),
@@ -658,18 +713,32 @@ export function generateMonthSchedule(
     staffList.some((s) => s.groupId?.startsWith('P')) ||
     (staffList.length === 6 && !hasGroupD && staffList.every((s) => s.roleNote?.includes('Tek Kişi') || s.groupId.startsWith('P')));
 
+  // 6 Kişilik Gruplu Model Kontrolü
+  const isMeeting6p = !hasGroupD && !isIndividual6p && staffList.length === 6 && (
+    staffList.some(s => s.id?.startsWith('noc6-')) ||
+    staffList.some(s => s.roleNote?.includes('A Grubu') || s.roleNote?.includes('B Grubu') || s.roleNote?.includes('C Grubu'))
+  );
+
+  // 3 Gruplu Kesintisiz Model Kontrolü (Örn: MPLS 12 Personel, 4'er Kişilik 3 Grup: A, B, C)
+  const is3GroupModel = !hasGroupD && !isIndividual6p && !isMeeting6p && (
+    availableGroupIds.length <= 3 && availableGroupIds.every(g => ['A', 'B', 'C'].includes(g))
+  );
+
   // D Grubu her zaman Çarşamba ve Pazar çalışır. A,B,C grupları diğer günleri döndürür.
   // 6 Kişilik modelde ise hafta içi A ve B grupları döner, Cmt ve Paz sabit 3. Grup (C) tek kişi tutar.
-  const baseOrder: GroupId[] = hasGroupD ? ['A', 'B', 'C'] : ['A', 'B'];
+  // 3 Gruplu modelde (MPLS 12 kişi) ise A, B, C grupları 24/48 kesintisiz döner.
+  const baseOrder: GroupId[] = is3GroupModel ? ['A', 'B', 'C'] : (hasGroupD ? ['A', 'B', 'C'] : ['A', 'B']);
   let rotatingGroups = baseOrder.filter((g) => availableGroupIds.includes(g));
   if (rotatingGroups.length === 0) {
-    rotatingGroups = hasGroupD ? ['A', 'B', 'C'] : ['A', 'B'];
+    rotatingGroups = is3GroupModel ? ['A', 'B', 'C'] : (hasGroupD ? ['A', 'B', 'C'] : ['A', 'B']);
   }
 
   // 1. Günden başlayacak grup (Akıllı Dengeleme veya Dişli çark)
   let effectiveStartGroup = startGroup;
   if (!effectiveStartGroup) {
-    if (Object.keys(previousBalances).length > 0 && rotatingGroups.length > 1) {
+    if (is3GroupModel) {
+      effectiveStartGroup = 'A';
+    } else if (Object.keys(previousBalances).length > 0 && rotatingGroups.length > 1) {
       // Akıllı Başlangıç Grubu Seçimi:
       // O ayki borç ve alacakları sıfıra en çok yaklaştıran başlangıç grubunu otomatik seçer
       let bestGroup = rotatingGroups[0];
@@ -692,7 +761,7 @@ export function generateMonthSchedule(
           } else if (isIndividual6p) {
             const indStaff = getIndividual6pStaffForDay(year, month, d, staffList);
             indStaff.forEach(s => { candidateDuties[s.id]++; });
-          } else if (!hasGroupD) {
+          } else if (isMeeting6p) {
             const cStaff1 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 1 || s.roleNote?.toLowerCase().includes('salı') || s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi')));
             const cStaff2 = staffList.find(s => s.groupId === 'C' && (s.orderInGroup === 2 || s.roleNote?.toLowerCase().includes('çarşamba') || s.roleNote?.toLowerCase().includes('pazar')));
             const cStaffAll = staffList.filter(s => s.groupId === 'C');
@@ -713,6 +782,27 @@ export function generateMonthSchedule(
               if (p1) candidateDuties[p1.id]++;
             } else if (dow === 3 || dow === 0) { // Çarşamba ve Pazar: 2. Kişi (Hüseyin Yıldız - Tek Kişi)
               if (p2) candidateDuties[p2.id]++;
+            }
+          } else if (is3GroupModel) {
+            const cStaffAll = staffList.filter(s => s.groupId === 'C');
+            const half = Math.ceil(cStaffAll.length / 2);
+            const cTeam1 = cStaffAll.filter(s => s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi') || s.roleNote?.toLowerCase().includes('1. ekip') || (s.orderInGroup !== undefined && s.orderInGroup <= half));
+            const cTeam2 = cStaffAll.filter(s => s.roleNote?.toLowerCase().includes('pazar') || s.roleNote?.toLowerCase().includes('2. ekip') || (s.orderInGroup !== undefined && s.orderInGroup > half));
+            const team1 = cTeam1.length > 0 ? cTeam1 : cStaffAll.slice(0, half);
+            const team2 = cTeam2.length > 0 ? cTeam2 : cStaffAll.slice(half);
+
+            if (dow === 1 || dow === 4) { // Pazartesi & Perşembe: A Grubu
+              const dStaff = staffList.filter(s => s.groupId === 'A');
+              dStaff.forEach(s => { candidateDuties[s.id]++; });
+            } else if (dow === 2 || dow === 5) { // Salı & Cuma: B Grubu
+              const dStaff = staffList.filter(s => s.groupId === 'B');
+              dStaff.forEach(s => { candidateDuties[s.id]++; });
+            } else if (dow === 3) { // Çarşamba: C Grubu (Tüm Grup)
+              cStaffAll.forEach(s => { candidateDuties[s.id]++; });
+            } else if (dow === 6) { // Cumartesi: C Grubu 1. Ekip
+              team1.forEach(s => { candidateDuties[s.id]++; });
+            } else if (dow === 0) { // Pazar: C Grubu 2. Ekip
+              team2.forEach(s => { candidateDuties[s.id]++; });
             }
           } else if (dow === 0 && hasGroupD) {
             const dStaff = staffList.filter(s => s.groupId === 'D');
@@ -786,7 +876,7 @@ export function generateMonthSchedule(
       // 4. İki nöbet arasında kesintisiz istirahat güvence altındadır.
       dutyStaff = getIndividual6pStaffForDay(year, month, day, staffList);
       dutyGroupId = dutyStaff[0]?.groupId || 'P1';
-    } else if (!hasGroupD) {
+    } else if (isMeeting6p) {
       // === 6 KİŞİLİK GRUPLU MODEL ===
       // 1. Grup (A): Pazartesi ve Perşembe (2 Kişi - Serkan Tuna & Mehmet Kızılay)
       // 2. Grup (B): Salı ve Cuma (2 Kişi - İbrahim Erek & Barış Memiş)
@@ -819,6 +909,46 @@ export function generateMonthSchedule(
       } else if (dayOfWeek === 0) { // PAZAR: 3. Grup 2. Kişi (Mustafa Telsiz - Sabit Tek Kişi)
         dutyGroupId = 'C';
         dutyStaff = p2 ? [p2] : (cStaffAll.length > 1 ? [cStaffAll[1]] : [cStaffAll[0]]);
+      }
+    } else if (is3GroupModel) {
+      // === 3 GRUPLU MODEL (MPLS 12 KİŞİ: 4'ER KİŞİLİK 3 GRUP A, B, C) - NOC ÇALIŞMA DÜZENİ ===
+      // KURAL: Bir 2 boşluk bir 3 gün boşluk olacak şekilde haftalık nöbet döngüsü!
+      // - Pazartesi (1): 1. Grup (A) - 4 Kişi (Perşembe'den sonra 3 gün boşluk [Cum-Cmt-Paz] sonrası)
+      // - Salı (2): 2. Grup (B) - 4 Kişi (Cuma'dan sonra 3 gün boşluk [Cmt-Paz-Pzt] sonrası)
+      // - Çarşamba (3): 3. Grup (C) - 4 Kişi (Tüm C Grubu)
+      // - Perşembe (4): 1. Grup (A) - 4 Kişi (Pazartesi'den sonra 2 gün boşluk [Sal-Çar] sonrası)
+      // - Cuma (5): 2. Grup (B) - 4 Kişi (Salı'dan sonra 2 gün boşluk [Çar-Per] sonrası)
+      // - Cumartesi (6): 3. Grup (C) 1. Ekip - 2 Kişi (Çarşamba'dan sonra 2 gün boşluk [Per-Cum] sonrası; sonrası 3 gün boş [Paz-Pzt-Sal])
+      // - Pazar (0): 3. Grup (C) 2. Ekip - 2 Kişi (Çarşamba'dan sonra 3 gün boşluk [Per-Cum-Cmt] sonrası; sonrası 2 gün boş [Pzt-Sal])
+
+      const cStaffAll = staffList.filter(s => s.groupId === 'C');
+      const half = Math.ceil(cStaffAll.length / 2);
+      const cTeam1 = cStaffAll.filter(s => s.roleNote?.toLowerCase().includes('cumartesi') || s.roleNote?.toLowerCase().includes('ctesi') || s.roleNote?.toLowerCase().includes('1. ekip') || (s.orderInGroup !== undefined && s.orderInGroup <= half));
+      const cTeam2 = cStaffAll.filter(s => s.roleNote?.toLowerCase().includes('pazar') || s.roleNote?.toLowerCase().includes('2. ekip') || (s.orderInGroup !== undefined && s.orderInGroup > half));
+      const team1 = cTeam1.length > 0 ? cTeam1 : cStaffAll.slice(0, half);
+      const team2 = cTeam2.length > 0 ? cTeam2 : cStaffAll.slice(half);
+
+      if (dayOfWeek === 1) { // PAZARTESİ: 1. Grup (A) - 4 Kişi
+        dutyGroupId = 'A';
+        dutyStaff = staffList.filter(s => s.groupId === 'A');
+      } else if (dayOfWeek === 2) { // SALI: 2. Grup (B) - 4 Kişi
+        dutyGroupId = 'B';
+        dutyStaff = staffList.filter(s => s.groupId === 'B');
+      } else if (dayOfWeek === 3) { // ÇARŞAMBA: 3. Grup (C) - 4 Kişi Tam Kadro
+        dutyGroupId = 'C';
+        dutyStaff = cStaffAll;
+      } else if (dayOfWeek === 4) { // PERŞEMBE: 1. Grup (A) - 4 Kişi
+        dutyGroupId = 'A';
+        dutyStaff = staffList.filter(s => s.groupId === 'A');
+      } else if (dayOfWeek === 5) { // CUMA: 2. Grup (B) - 4 Kişi
+        dutyGroupId = 'B';
+        dutyStaff = staffList.filter(s => s.groupId === 'B');
+      } else if (dayOfWeek === 6) { // CUMARTESİ: 3. Grup (C) 1. Ekip - 2 Kişi
+        dutyGroupId = 'C';
+        dutyStaff = team1.length > 0 ? team1 : cStaffAll;
+      } else if (dayOfWeek === 0) { // PAZAR: 3. Grup (C) 2. Ekip - 2 Kişi
+        dutyGroupId = 'C';
+        dutyStaff = team2.length > 0 ? team2 : cStaffAll;
       }
     } else {
       // === 7 KİŞİLİK STANDART MODEL ===
@@ -881,7 +1011,7 @@ export function generateMonthSchedule(
   // NOC Pilot Birimi Kontrolü
   const isNoc = staffList.some((s) => s.id.startsWith('noc-'));
 
-  if (enableAutoCompensate) {
+  if (enableAutoCompensate && !isMeeting6p && !isIndividual6p && !is3GroupModel) {
     // Tüm Birimler İçin: Nöbet Devri & Adil Denkleştirme (Shift Exchange)
     // 1 nöbet 24 saat = 3 gün normal mesaiye denktir. Bir personelde biriken fazla alacak (>= 2 gün) ile
     // borcu olan personel (<= -2 gün) arasında adil nöbet değişimi yapılır.
