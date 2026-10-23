@@ -279,9 +279,9 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
 
                   {/* 31 Günlük Hücreler */}
                   {shifts.map((shift) => {
+                    const isSupport = Boolean(shift.supportStaff?.some((s) => s.id === staff.id));
                     const isDuty =
-                      shift.dutyStaff.some((s) => s.id === staff.id) ||
-                      (shift.supportStaff ? shift.supportStaff.some((s) => s.id === staff.id) : false);
+                      shift.dutyStaff.some((s) => s.id === staff.id) || isSupport;
                     const isLeave = shift.leaves?.some((l) => l.staff.id === staff.id) || false;
                     
                     // SADECE Cumartesi ve Pazar sütunları boyalı olmalı, hafta içi (Pzt-Cum) ASLA boyanamaz
@@ -310,8 +310,16 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                           </div>
                         ) : isDuty ? (
                           <div
-                            className={`absolute inset-0 flex items-center justify-center font-black text-[10px] sm:text-[11px] leading-none tracking-tight shadow-xs bg-indigo-600 text-white ring-1 ring-inset ${isDark ? 'ring-indigo-500' : 'ring-indigo-400'}`}
-                            title={`${staff.name} - 24 Saat ABC Nöbeti`}
+                            className={`absolute inset-0 flex items-center justify-center font-black text-[10px] sm:text-[11px] leading-none tracking-tight shadow-xs ${
+                              isSupport
+                                ? 'bg-amber-500 text-white ring-1 ring-inset ring-amber-400'
+                                : `bg-indigo-600 text-white ring-1 ring-inset ${isDark ? 'ring-indigo-500' : 'ring-indigo-400'}`
+                            }`}
+                            title={
+                              isSupport
+                                ? `${staff.name} - 24 Saat ABC (Cuma'dan Cumartesiye Kaydırılan Turuncu Nöbet)`
+                                : `${staff.name} - 24 Saat ABC Nöbeti`
+                            }
                           >
                             ABC
                           </div>

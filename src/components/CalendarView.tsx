@@ -166,20 +166,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  {shift.dutyStaff.map((st) => (
-                    <div
-                      key={st.id}
-                      className={`text-xs font-bold flex items-center gap-1.5 truncate px-2 py-1 rounded-md border ${
-                        isDark
-                          ? 'text-white bg-slate-800/80 border-slate-700/60'
-                          : 'text-slate-800 bg-slate-100 border-slate-200'
-                      }`}
-                      title={st.name}
-                    >
-                      <UserCheck className="w-3 h-3 text-indigo-500 shrink-0" />
-                      <span className="truncate">{st.name}</span>
-                    </div>
-                  ))}
+                  {shift.dutyStaff.map((st) => {
+                    const isSupport = shift.supportStaff?.some((s) => s.id === st.id);
+                    return (
+                      <div
+                        key={st.id}
+                        className={`text-xs font-bold flex items-center gap-1.5 truncate px-2 py-1 rounded-md border ${
+                          isSupport
+                            ? isDark
+                              ? 'text-amber-200 bg-amber-950/60 border-amber-500/40 ring-1 ring-amber-500/30'
+                              : 'text-amber-900 bg-amber-100/90 border-amber-300 ring-1 ring-amber-300'
+                            : isDark
+                            ? 'text-white bg-slate-800/80 border-slate-700/60'
+                            : 'text-slate-800 bg-slate-100 border-slate-200'
+                        }`}
+                        title={isSupport ? `${st.name} - Cuma'dan Cumartesiye Kaydırılan Turuncu Nöbet` : st.name}
+                      >
+                        <UserCheck className={`w-3 h-3 ${isSupport ? 'text-amber-500' : 'text-indigo-500'} shrink-0`} />
+                        <span className="truncate">{st.name}</span>
+                        {isSupport && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500 text-white font-black ml-auto shrink-0">
+                            Kaydırılan
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* İzinli Personeller */}
                   {shift.leaves && shift.leaves.map((lv) => (

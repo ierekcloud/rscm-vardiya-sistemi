@@ -224,15 +224,27 @@ export async function exportScheduleToExcel(
         const isWeekend = Boolean(shift.isWeekend);
         const val = cell.value;
 
+        const isSupport = Boolean(shift.supportStaff?.some((s) => s.id === staff.id));
         if (val === 'ABC') {
-          // ABC NÖBETİ (Canlı Kurumsal İndigo / Mavi)
-          cell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: 'FFFFFFFF' } };
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: isWeekend ? 'FF2563EB' : 'FF4F46E5' }, // Hafta sonu daha belirgin mavi
-          };
-          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          if (isSupport) {
+            // CUMA'DAN CUMARTESİYE KAYDIRILAN NÖBET (Turuncu • Excel ile Birebir Uyumlu)
+            cell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF59E0B' }, // Amber / Turuncu
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          } else {
+            // ABC NÖBETİ (Canlı Kurumsal İndigo / Mavi)
+            cell.font = { name: 'Segoe UI', size: 9.5, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: isWeekend ? 'FF2563EB' : 'FF4F46E5' }, // Hafta sonu daha belirgin mavi
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          }
         } else if (val === 'X') {
           // İZİN / RAPOR (Amber / Turuncu)
           cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF92400E' } };
@@ -546,9 +558,14 @@ export async function exportYearlyScheduleToExcel(
           const isWk = shift.date.getDay() === 0 || shift.date.getDay() === 6;
           const val = cell.value;
 
+          const isSupport = Boolean(shift.supportStaff?.some((s) => s.id === st.id));
           if (val === 'ABC') {
             cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isWk ? 'FF2563EB' : 'FF4F46E5' } };
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: isSupport ? 'FFF59E0B' : (isWk ? 'FF2563EB' : 'FF4F46E5') },
+            };
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
           } else if (val === 'X') {
             cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FF92400E' } };
