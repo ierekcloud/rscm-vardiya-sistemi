@@ -304,6 +304,164 @@ export function getGearStartGroup(
   return baseOrder[targetIdx] || 'A';
 }
 
+const mplsRotationCache = new Map<string, StaffMember[]>();
+
+/**
+ * 12 Kişilik 3 Gruplu MPLS Modeli İçin Çakışmasız, Dengeli ve Adil Aylık Rotasyon Motoru:
+ * - 3 Grup (A, B, C): 2 grup hafta içi (A: Pzt & Per, B: Salı & Cuma), 1 grup hafta sonu (C: Çarşamba tam kadro, Cmt 1. Ekip, Paz 2. Ekip).
+ * - Her ay hafta sonu grubu (C) sırayla 1 grup (4 kişi) döner; her grup 3 ayda 1 ay hafta sonu, 2 ay hafta içi çalışır.
+ * - C Grubu içindeki 1. Ekip (Cumartesi) ve 2. Ekip (Pazar), C grubuna her gelişte dönüşümlü değişir; böylece 5 Pazarlı/5 Cumartesili aylarda hiçbir personel sürekli dezavantajlı kalmaz.
+ * - Hafta içi iki grup (A ve B) ay sonu / ay başı geçişlerinde çakışmayı (arka arkaya 24h nöbeti) %100 önleyecek ve kümülatif borç/alacak farklarını sıfıra en yakın tutacak şekilde dinamik olarak dengelenir.
+ */
+export function getOptimalMplsRotatedStaff(
+  staffList: StaffMember[],
+  targetYear: number,
+  targetMonth: number
+): StaffMember[] {
+  if (!staffList || staffList.length < 12) return staffList;
+
+  const cacheKey = `${staffList.map(s => s.id).join(',')}_${targetYear}_${targetMonth}`;
+  if (mplsRotationCache.has(cacheKey)) {
+    return mplsRotationCache.get(cacheKey)!;
+  }
+
+  // Personelleri sayısal ID veya orijinal grup/sıraya göre 3 gruba (4'er kişilik kohortlara) ayır
+  const sorted = [...staffList].sort((a, b) => {
+    const aNum = parseInt(a.id.replace(/\D/g, ''), 10);
+    const bNum = parseInt(b.id.replace(/\D/g, ''), 10);
+    if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) return aNum - bNum;
+    return (a.orderInGroup || 0) - (b.orderInGroup || 0);
+  });
+
+  const cohorts = [
+    sorted.slice(0, 4),
+    sorted.slice(4, 8),
+    sorted.slice(8, 12),
+  ];
+
+  const baseYear = 2026;
+  const baseMonth = 9; // Ekim 2026 (0-indexed: 9)
+  const targetDiff = (targetYear - baseYear) * 12 + (targetMonth - baseMonth);
+
+  if (targetDiff <= 0) {
+    const baseStaff = [
+      ...cohorts[0].map((s, idx) => ({ ...s, groupId: 'A' as GroupId, orderInGroup: idx + 1, roleNote: '1. Hafta İçi (Pzt & Per • 2 Boşluk / 3 Boşluk)' })),
+      ...cohorts[1].map((s, idx) => ({ ...s, groupId: 'B' as GroupId, orderInGroup: idx + 1, roleNote: '2. Hafta İçi (Salı & Cuma • 2 Boşluk / 3 Boşluk)' })),
+      ...cohorts[2].map((s, idx) => ({ ...s, groupId: 'C' as GroupId, orderInGroup: idx + 1, roleNote: idx < 2 ? 'Hafta Sonu 1. Ekip (Çar & Cmt • 2 Boşluk / 3 Boşluk)' : 'Hafta Sonu 2. Ekip (Çar & Paz • 2 Boşluk / 3 Boşluk)' })),
+    ];
+    mplsRotationCache.set(cacheKey, baseStaff);
+    return baseStaff;
+  }
+
+  let runningBalances: Record<string, number> = {};
+  sorted.forEach(s => { runningBalances[s.id] = 0; });
+  let lastDayStaffIds: string[] = [];
+  let currentStaffList: StaffMember[] = [];
+  const timesInGroupC = [0, 0, 0];
+
+  for (let diff = 0; diff <= targetDiff; diff++) {
+    const m = (baseMonth + diff) % 12;
+    const y = baseYear + Math.floor((baseMonth + diff) / 12);
+    const totalDays = new Date(y, m + 1, 0).getDate();
+    let sundays = 0;
+    for (let d = 1; d <= totalDays; d++) {
+      if (new Date(y, m, d, 12).getDay() === 0) sundays++;
+    }
+    const targetDays = totalDays - sundays;
+    const day1Dow = new Date(y, m, 1, 12).getDay();
+
+    const weekendCohortIdx = (2 + diff) % 3;
+    timesInGroupC[weekendCohortIdx]++;
+    const otherTwo = [0, 1, 2].filter(c => c !== weekendCohortIdx);
+
+    const cand1 = [otherTwo[0], otherTwo[1], weekendCohortIdx];
+    const cand2 = [otherTwo[1], otherTwo[0], weekendCohortIdx];
+
+    const evalCandidate = (perm: number[]) => {
+      const cA = cohorts[perm[0]];
+      const cB = cohorts[perm[1]];
+      const cC = cohorts[perm[2]];
+
+      const swapWeekend = (timesInGroupC[perm[2]] % 2 === 0);
+
+      let day1Ids: string[] = [];
+      if (day1Dow === 1 || day1Dow === 4) day1Ids = cA.map(s => s.id);
+      else if (day1Dow === 2 || day1Dow === 5) day1Ids = cB.map(s => s.id);
+      else if (day1Dow === 3) day1Ids = cC.map(s => s.id);
+      else if (day1Dow === 6) day1Ids = swapWeekend ? [cC[2].id, cC[3].id] : [cC[0].id, cC[1].id];
+      else if (day1Dow === 0) day1Ids = swapWeekend ? [cC[0].id, cC[1].id] : [cC[2].id, cC[3].id];
+
+      const hasClash = lastDayStaffIds.some(id => day1Ids.includes(id));
+      if (hasClash) return { valid: false, score: 999999, staff: [], monthEndBalances: {}, lastDayIdsForMonth: [] };
+
+      const cC_staff: StaffMember[] = swapWeekend
+        ? [
+            { ...cC[2], groupId: 'C' as GroupId, orderInGroup: 1, roleNote: 'Hafta Sonu 1. Ekip (Çar & Cmt • 2 Boşluk / 3 Boşluk)' },
+            { ...cC[3], groupId: 'C' as GroupId, orderInGroup: 2, roleNote: 'Hafta Sonu 1. Ekip (Çar & Cmt • 2 Boşluk / 3 Boşluk)' },
+            { ...cC[0], groupId: 'C' as GroupId, orderInGroup: 3, roleNote: 'Hafta Sonu 2. Ekip (Çar & Paz • 2 Boşluk / 3 Boşluk)' },
+            { ...cC[1], groupId: 'C' as GroupId, orderInGroup: 4, roleNote: 'Hafta Sonu 2. Ekip (Çar & Paz • 2 Boşluk / 3 Boşluk)' },
+          ]
+        : [
+            { ...cC[0], groupId: 'C' as GroupId, orderInGroup: 1, roleNote: 'Hafta Sonu 1. Ekip (Çar & Cmt • 2 Boşluk / 3 Boşluk)' },
+            { ...cC[1], groupId: 'C' as GroupId, orderInGroup: 2, roleNote: 'Hafta Sonu 1. Ekip (Çar & Cmt • 2 Boşluk / 3 Boşluk)' },
+            { ...cC[2], groupId: 'C' as GroupId, orderInGroup: 3, roleNote: 'Hafta Sonu 2. Ekip (Çar & Paz • 2 Boşluk / 3 Boşluk)' },
+            { ...cC[3], groupId: 'C' as GroupId, orderInGroup: 4, roleNote: 'Hafta Sonu 2. Ekip (Çar & Paz • 2 Boşluk / 3 Boşluk)' },
+          ];
+
+      const staff: StaffMember[] = [
+        ...cA.map((s, idx) => ({ ...s, groupId: 'A' as GroupId, orderInGroup: idx + 1, roleNote: '1. Hafta İçi (Pzt & Per • 2 Boşluk / 3 Boşluk)' })),
+        ...cB.map((s, idx) => ({ ...s, groupId: 'B' as GroupId, orderInGroup: idx + 1, roleNote: '2. Hafta İçi (Salı & Cuma • 2 Boşluk / 3 Boşluk)' })),
+        ...cC_staff,
+      ];
+
+      const duties: Record<string, number> = {};
+      staff.forEach(s => { duties[s.id] = 0; });
+      let lastDayIdsForMonth: string[] = [];
+
+      for (let d = 1; d <= totalDays; d++) {
+        const dow = new Date(y, m, d, 12).getDay();
+        let todayIds: string[] = [];
+        if (dow === 1 || dow === 4) todayIds = cA.map(s => s.id);
+        else if (dow === 2 || dow === 5) todayIds = cB.map(s => s.id);
+        else if (dow === 3) todayIds = cC.map(s => s.id);
+        else if (dow === 6) todayIds = swapWeekend ? [cC[2].id, cC[3].id] : [cC[0].id, cC[1].id];
+        else if (dow === 0) todayIds = swapWeekend ? [cC[0].id, cC[1].id] : [cC[2].id, cC[3].id];
+
+        todayIds.forEach(id => { duties[id] = (duties[id] || 0) + 1; });
+        if (d === totalDays) lastDayIdsForMonth = todayIds;
+      }
+
+      const monthEndBalances: Record<string, number> = {};
+      let score = 0;
+      let maxAbs = 0;
+      staff.forEach(s => {
+        const dutyCount = duties[s.id] || 0;
+        const diff = dutyCount * 3 - targetDays;
+        const net = (runningBalances[s.id] || 0) + diff;
+        monthEndBalances[s.id] = net;
+        if (Math.abs(net) > maxAbs) maxAbs = Math.abs(net);
+        score += net * net;
+      });
+      score += maxAbs * 50;
+
+      return { valid: true, score, staff, monthEndBalances, lastDayIdsForMonth };
+    };
+
+    const res1 = evalCandidate(cand1);
+    const res2 = evalCandidate(cand2);
+    const chosen = (res1.valid && res2.valid)
+      ? (res1.score <= res2.score ? res1 : res2)
+      : (res1.valid ? res1 : res2);
+
+    currentStaffList = chosen.staff;
+    runningBalances = chosen.monthEndBalances;
+    lastDayStaffIds = chosen.lastDayIdsForMonth;
+  }
+
+  mplsRotationCache.set(cacheKey, currentStaffList);
+  return currentStaffList;
+}
+
 /**
  * Her ay personelin adaletli bir şekilde gruplar/sıralar arasında yer değiştirmesini sağlar.
  * Hem 7 kişilik, hem 6 kişilik gruplu, hem de 6 kişilik grupsuz modellerde tüm personeller her ay adil ve sistematik olarak sırayla döner.
@@ -333,7 +491,12 @@ export function getRotatedStaff(
     return [...staffList];
   }
 
-  // Diğer modellerde (7 Kişilik Standart, 6 Kişilik Gruplu ve 12 Kişilik 3 Gruplu MPLS) personeli hiyerarşik grup ve sıra düzenine göre sırala
+  // 12 Kişilik 3 Gruplu MPLS Modelinde aylık rotasyon, hafta sonu (C) döngüsü ve çakışmasız dengeleme motoru
+  if (is3GroupModel) {
+    return getOptimalMplsRotatedStaff(staffList, year, month);
+  }
+
+  // Diğer modellerde (7 Kişilik Standart, 6 Kişilik Gruplu) personeli hiyerarşik grup ve sıra düzenine göre sırala
   const sortedStaff = [...staffList].sort((a, b) => {
     const groupOrder = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'A', 'B', 'C', 'D', 'E', 'F'];
     const aGrpIdx = groupOrder.indexOf(a.groupId);
@@ -360,10 +523,7 @@ export function getRotatedStaff(
   if (len === 0) return [];
 
   // İleriye doğru adil döngü: Her ay personeller sırayla bir sonraki gruba ve slota geçer.
-  // 3 Gruplu MPLS modelinde (12 kişi) her ay 4 kişilik tam bir grup kayar (2 hafta içi grubu ve 1 hafta sonu grubu sırayla döner).
-  const shiftAmount = is3GroupModel
-    ? (((monthDiff * -4) % len + len) % len)
-    : (((monthDiff * -1) % len + len) % len);
+  const shiftAmount = (((monthDiff * -1) % len + len) % len);
 
   const shifted = [
     ...sortedStaff.slice(len - shiftAmount),
