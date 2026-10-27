@@ -207,21 +207,32 @@ export default function App() {
             };
           }
           if (d.id === 'dep-mpls') {
-            const is12Person = d.staff?.length === 12 && !d.staff.some(s => s.groupId === 'D');
-            const hasOrnek = d.staff?.some(s => s.name?.startsWith('Örnek'));
-            const updatedStaff = (is12Person && hasOrnek)
-              ? d.staff.map(s => {
-                  const def = DEFAULT_MPLS_STAFF.find(ds => ds.id === s.id);
-                  return def ? { ...s, roleNote: def.roleNote } : s;
-                })
-              : (is12Person ? d.staff : DEFAULT_MPLS_STAFF);
+            // MPLS birimi için personeller gruplarında (A: 1-4, B: 5-8, C: 9-12) ve sıralarında KESİNLİKLE SABİTTİR.
+            // LocalStorage'daki eski rotasyonlu veriler dahi kusursuz sabit 12 personele normalize edilir.
+            const baseStaff = DEFAULT_MPLS_STAFF;
+            let normalizedStaff = baseStaff;
+
+            if (d.staff && d.staff.length === 12) {
+              const hasCustomNames = d.staff.some(s => s.name && !s.name.startsWith('Örnek'));
+              if (hasCustomNames) {
+                normalizedStaff = baseStaff.map((slot, idx) => {
+                  const existing = d.staff.find(s => s.id === slot.id) || d.staff[idx];
+                  return {
+                    ...slot,
+                    name: existing?.name || slot.name,
+                  };
+                });
+              } else {
+                normalizedStaff = baseStaff;
+              }
+            }
 
             return {
               ...d,
               name: 'MPLS',
               shiftModel: 'STANDARD_3G',
-              modelDescription: "12 Personel • 3 Grup (4'er Kişi) • 2 Grup Hafta İçi, 1 Grup Hafta Sonu (Aylık Rotasyon)",
-              staff: updatedStaff,
+              modelDescription: "12 Personel • 3 Grup (4'er Kişi) • Sabit Kadro (A: 1-4, B: 5-8, C: 9-12)",
+              staff: normalizedStaff,
             };
           }
           if (d.id === 'dep-mobil') {
@@ -561,8 +572,11 @@ export default function App() {
 
   // Standart aylık çalışma hedefi
   const autoTargetDays = useMemo(() => {
+    if (activeDepartment.shiftModel === 'STANDARD_3G' || activeDepartment.id === 'dep-mpls') {
+      return daysInMonth <= 28 ? 24 : 26;
+    }
     return calculateTargetWorkingDays(selectedYear, selectedMonth);
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, activeDepartment.shiftModel, activeDepartment.id, daysInMonth]);
 
   // Önceki aydan devreden gün bakiyeleri
   const prevMonthKey = useMemo(() => {

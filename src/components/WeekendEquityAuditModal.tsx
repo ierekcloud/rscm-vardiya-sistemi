@@ -20,7 +20,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Department, MonthSummary, StaffMember } from '../types';
-import { TURKISH_MONTHS, generateMonthSchedule } from '../utils/shiftLogic';
+import { TURKISH_MONTHS, generateMonthSchedule, getRotatedStaff } from '../utils/shiftLogic';
 
 interface WeekendEquityAuditModalProps {
   isOpen: boolean;
@@ -78,7 +78,8 @@ export const WeekendEquityAuditModal: React.FC<WeekendEquityAuditModalProps> = (
       const y = currentYear + Math.floor((currentMonth + i) / 12);
       monthsIncluded.push(`${TURKISH_MONTHS[m]} ${y}`);
 
-      const summary = generateMonthSchedule(y, m, undefined, staff, {}, {}, undefined, true);
+      const rotated = getRotatedStaff(staff, y, m, department.shiftModel);
+      const summary = generateMonthSchedule(y, m, undefined, rotated, {}, {}, undefined, true);
       totalMonthDays += summary.totalDays;
 
       summary.shifts.forEach((sh) => {

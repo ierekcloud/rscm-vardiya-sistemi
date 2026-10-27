@@ -19,7 +19,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Department, MonthSummary, StaffMember, DayShift, StaffLeave } from '../types';
-import { TURKISH_MONTHS, generateMonthSchedule } from '../utils/shiftLogic';
+import { TURKISH_MONTHS, generateMonthSchedule, getRotatedStaff } from '../utils/shiftLogic';
 
 interface DiagnosticIssue {
   id: string;
@@ -71,11 +71,12 @@ export const ScheduleHealthCheckModal: React.FC<ScheduleHealthCheckModalProps> =
     // Önceki ayın son gününü al (ay geçişi kontrolü için)
     const prevMonthIndex = selectedMonth === 0 ? 11 : selectedMonth - 1;
     const prevMonthYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+    const rotatedPrevStaff = getRotatedStaff(staff, prevMonthYear, prevMonthIndex, department.shiftModel);
     const prevMonthSummary = generateMonthSchedule(
       prevMonthYear,
       prevMonthIndex,
       undefined,
-      staff,
+      rotatedPrevStaff,
       {},
       {},
       undefined,

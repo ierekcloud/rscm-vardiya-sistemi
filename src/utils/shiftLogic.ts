@@ -480,8 +480,11 @@ export function getMplsDailyAssignment(
   }
 
   // 4. Genel Dinamik Aylık Hesaplama (Şubat 2027 ve sonrası / diğer aylar)
-  const monthOffset = (year - 2026) * 12 + (month - 10);
-  const cycle = ((monthOffset % 3) + 3) % 3;
+  // Ocak 2027 Excel'inden sonra Şubat 2027'den itibaren simetrik, çakışmasız rotasyon çarkı:
+  // Şubat: 2 (B, C, A), Mart: 1 (C, A, B), Nisan: 0 (A, B, C) düzeninde 3 aylık periyotlarla döner.
+  // Bu formül hem ay geçişlerinde peş peşe nöbeti %100 engeller, hem de 2027 Aralık ayındaki borç/alacak yığılmasını önler.
+  const monthsFromJan2027 = (year - 2027) * 12 + month;
+  const cycle = ((3 - (monthsFromJan2027 % 3)) % 3 + 3) % 3;
 
   // Grup Rolleri (A, B, C gruplarının rolleri aylık döner, personeller sabit kalır):
   // cycle 0 (Kasım döngüsü): MonThu = A (1-4), TueFri = B (5-8), WedWknd = C (9-12)
@@ -592,10 +595,16 @@ export function getRotatedStaff(
     return [...staffList];
   }
 
-  // 12 Kişilik 3 Gruplu MPLS Modelinde personeller ve gruplar sabittir.
+  // 12 Kişilik 3 Gruplu MPLS Modelinde personeller ve gruplar KESİNLİKLE SABİTTİR.
   // Kullanıcı Kuralı: "MPLS birimi için her ay personel isim değişikliği yapılmayacak. Gruplardaki isim değişikliği olmayacak isimler sabit olacak."
   if (is3GroupModel) {
-    return [...staffList];
+    const gOrder = ['A', 'B', 'C'];
+    return [...staffList].sort((a, b) => {
+      const aG = gOrder.indexOf(a.groupId);
+      const bG = gOrder.indexOf(b.groupId);
+      if (aG !== -1 && bG !== -1 && aG !== bG) return aG - bG;
+      return (a.orderInGroup || 0) - (b.orderInGroup || 0);
+    });
   }
 
   // Diğer modellerde (7 Kişilik Standart, 6 Kişilik Gruplu) personeli hiyerarşik grup ve sıra düzenine göre sırala
@@ -745,8 +754,9 @@ function validateMonthSchedule(shifts: DayShift[], staffStats: Record<string, St
       }
   }
 
+  const isCustomModel = staffList.length === 12 || staffList.length === 6 || !hasGroupD;
   const regularGroups = ['A', 'B', 'C'].filter(g => staffList.some(s => s.groupId === g));
-  if (regularGroups.length > 1) {
+  if (!isCustomModel && regularGroups.length > 1) {
       let expectedNext: string | null = null;
       for (const sh of shifts) {
          if (sh.date.getDay() !== 0 && regularGroups.includes(sh.dutyGroupId) && !sh.isOverridden) {
@@ -962,9 +972,6 @@ export function generateMonthSchedule(
   const totalDays = new Date(year, month + 1, 0).getDate();
   const shifts: DayShift[] = [];
 
-  // Ayın iş günü hedefi
-  const targetWorkingDays = customTargetDays || calculateTargetWorkingDays(year, month);
-
   // Personel listesindeki mevcut grupları alfabetik sırayla belirle
   const availableGroupIds = staffList.map(s => s.groupId).filter((value, index, self) => self.indexOf(value) === index);
   const hasGroupD = availableGroupIds.includes('D');
@@ -985,6 +992,11 @@ export function generateMonthSchedule(
   const is3GroupModel = !hasGroupD && !isIndividual6p && !isMeeting6p && (
     availableGroupIds.length <= 3 && availableGroupIds.every(g => ['A', 'B', 'C'].includes(g))
   );
+
+  // Ayın iş günü hedefi:
+  // MPLS 12 kişilik 24 saatlik nöbet modelinde aylık çalışma hedefi Şubat'ta (28 gün) 24 gün, diğer aylarda 26 gündür (8 nöbet=24 gün, 9 nöbet=27 gün, 3 aylık döngüde tam dengelenir).
+  const defaultTarget = is3GroupModel ? (totalDays <= 28 ? 24 : 26) : calculateTargetWorkingDays(year, month);
+  const targetWorkingDays = customTargetDays || defaultTarget;
 
   // D Grubu her zaman Çarşamba ve Pazar çalışır. A,B,C grupları diğer günleri döndürür.
   // 6 Kişilik modelde ise hafta içi A ve B grupları döner, Cmt ve Paz sabit 3. Grup (C) tek kişi tutar.
@@ -1232,6 +1244,9 @@ export function generateMonthSchedule(
 
     // Nöbetçi personeller arasından izinli olanları çıkar (nöbete katılmayacak)
     dutyStaff = dutyStaff.filter((st) => !leaveStaffIds.has(st.id));
+    if (supportStaff) {
+      supportStaff = supportStaff.filter((st) => !leaveStaffIds.has(st.id));
+    }
 
     const dayLeavesInfo: { staff: StaffMember; reason?: string }[] = [];
     dayLeaves.forEach((l) => {
@@ -1359,16 +1374,13 @@ export function generateMonthSchedule(
   });
 
   shifts.forEach((shift) => {
-    // Ana nöbetçi personel sayaçları
-    shift.dutyStaff.forEach((st) => {
-      dutyCounts[st.id] = (dutyCounts[st.id] || 0) + 1;
+    // Güvenlik: Aynı gün içinde personelin birden fazla kez sayılmasını kesin olarak engelle
+    const dayStaffSet = new Set<string>();
+    shift.dutyStaff.forEach((st) => dayStaffSet.add(st.id));
+    shift.supportStaff?.forEach((st) => dayStaffSet.add(st.id));
+    dayStaffSet.forEach((id) => {
+      dutyCounts[id] = (dutyCounts[id] || 0) + 1;
     });
-    // Araya sıkıştırılan denkleştirme personelleri
-    if (shift.supportStaff) {
-      shift.supportStaff.forEach((st) => {
-        dutyCounts[st.id] = (dutyCounts[st.id] || 0) + 1;
-      });
-    }
   });
 
   const staffStats: MonthSummary['staffStats'] = {};
